@@ -1,0 +1,860 @@
+{
+  "schema": 3,
+  "name": "Button",
+  "meta": {
+    "group": "Actions",
+    "order": 1,
+    "status": "draft",
+    "description": "Buttons and icon buttons. Flat colour, 2px black border, 3px hard shadow.",
+    "usage": {
+      "do": [
+        "One primary (red) button per surface: the thing you came here to do.",
+        "Use outline for secondary actions like Import and Export.",
+        "Use IconButton active for the selected editor tool."
+      ],
+      "dont": [
+        "Round the corners. The system is square, like a stitch.",
+        "Put two primary buttons side by side."
+      ]
+    }
+  },
+  "components": {
+    "Button": {
+      "description": "The one clickable action. Hard edge, hard shadow; pressing it sinks into the page.",
+      "props": {
+        "label": {
+          "type": "string",
+          "description": "Start with a verb: Export, Track, Save."
+        },
+        "variant": {
+          "type": "enum",
+          "of": [
+            "primary",
+            "secondary",
+            "outline",
+            "ghost"
+          ],
+          "default": "primary"
+        },
+        "size": {
+          "type": "enum",
+          "of": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "default": "md"
+        },
+        "state": {
+          "type": "enum",
+          "of": [
+            "default",
+            "hover",
+            "pressed",
+            "disabled"
+          ],
+          "default": "default"
+        },
+        "icon": {
+          "type": "string",
+          "default": "plus",
+          "description": "Lucide icon name, shown when hasIcon."
+        },
+        "hasIcon": {
+          "type": "boolean",
+          "default": false
+        },
+        "iconOnly": {
+          "type": "boolean",
+          "default": false,
+          "description": "Phone headers: square, icon only. The label stays for screen readers."
+        }
+      },
+      "root": {
+        "id": "root",
+        "type": "box",
+        "layout": "stack",
+        "direction": "row",
+        "align": "center",
+        "justify": "center",
+        "gap": {
+          "match": {
+            "prop": "iconOnly"
+          },
+          "cases": {
+            "true": 0,
+            "false": {
+              "match": {
+                "prop": "hasIcon"
+              },
+              "cases": {
+                "true": "$space.2",
+                "false": 0
+              }
+            }
+          }
+        },
+        "width": {
+          "match": {
+            "prop": "iconOnly"
+          },
+          "cases": {
+            "true": 40,
+            "false": null
+          }
+        },
+        "height": {
+          "match": {
+            "prop": "iconOnly"
+          },
+          "cases": {
+            "true": 40,
+            "false": null
+          }
+        },
+        "padding": {
+          "match": {
+            "prop": "iconOnly"
+          },
+          "cases": {
+            "true": 0,
+            "false": {
+              "match": {
+                "prop": "size"
+              },
+              "cases": {
+                "sm": [
+                  "$space.1",
+                  "$space.3"
+                ],
+                "md": [
+                  "$space.2",
+                  "$space.4"
+                ],
+                "lg": [
+                  "$space.3",
+                  "$space.6"
+                ]
+              }
+            }
+          }
+        },
+        "background": {
+          "match": {
+            "prop": "variant"
+          },
+          "cases": {
+            "primary": {
+              "match": {
+                "prop": "state"
+              },
+              "cases": {
+                "default": "$color.accent",
+                "hover": "$color.accentHover",
+                "pressed": "$color.accentHover",
+                "disabled": "$color.accent"
+              }
+            },
+            "secondary": "$color.inverse",
+            "outline": {
+              "match": {
+                "prop": "state"
+              },
+              "cases": {
+                "default": "$color.surface",
+                "hover": "$color.highlight",
+                "pressed": "$color.highlight",
+                "disabled": "$color.surface"
+              }
+            },
+            "ghost": {
+              "match": {
+                "prop": "state"
+              },
+              "cases": {
+                "default": "$color.transparent",
+                "hover": "$color.surfaceSunken",
+                "pressed": "$color.surfaceSunken",
+                "disabled": "$color.transparent"
+              }
+            }
+          }
+        },
+        "border": {
+          "match": {
+            "prop": "variant"
+          },
+          "cases": {
+            "primary": "$border.default",
+            "secondary": "$border.default",
+            "outline": "$border.default",
+            "ghost": {
+              "width": 2,
+              "color": "$color.transparent",
+              "style": "solid"
+            }
+          }
+        },
+        "shadow": {
+          "match": {
+            "prop": "variant"
+          },
+          "cases": {
+            "primary": {
+              "match": {
+                "prop": "state"
+              },
+              "cases": {
+                "default": "$shadow.sm",
+                "hover": "$shadow.md",
+                "pressed": "$shadow.none",
+                "disabled": "$shadow.none"
+              }
+            },
+            "secondary": {
+              "match": {
+                "prop": "state"
+              },
+              "cases": {
+                "default": "$shadow.sm",
+                "hover": "$shadow.md",
+                "pressed": "$shadow.none",
+                "disabled": "$shadow.none"
+              }
+            },
+            "outline": {
+              "match": {
+                "prop": "state"
+              },
+              "cases": {
+                "default": "$shadow.sm",
+                "hover": "$shadow.md",
+                "pressed": "$shadow.none",
+                "disabled": "$shadow.none"
+              }
+            },
+            "ghost": "$shadow.none"
+          }
+        },
+        "opacity": {
+          "match": {
+            "prop": "state"
+          },
+          "cases": {
+            "default": 1,
+            "hover": 1,
+            "pressed": 1,
+            "disabled": 0.4
+          }
+        },
+        "children": [
+          {
+            "id": "iconWrap",
+            "type": "box",
+            "layout": "stack",
+            "width": {
+              "match": {
+                "prop": "hasIcon"
+              },
+              "cases": {
+                "true": null,
+                "false": 0
+              }
+            },
+            "overflow": "hidden",
+            "children": [
+              {
+                "id": "icon",
+                "type": "icon",
+                "name": {
+                  "prop": "icon"
+                },
+                "size": {
+                  "match": {
+                    "prop": "size"
+                  },
+                  "cases": {
+                    "sm": 14,
+                    "md": 16,
+                    "lg": 18
+                  }
+                },
+                "color": {
+                  "match": {
+                    "prop": "variant"
+                  },
+                  "cases": {
+                    "primary": "$color.onAccent",
+                    "secondary": "$color.onInverse",
+                    "outline": "$color.text",
+                    "ghost": "$color.text"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "label",
+            "type": "text",
+            "value": {
+              "match": {
+                "prop": "iconOnly"
+              },
+              "cases": {
+                "true": "",
+                "false": {
+                  "prop": "label"
+                }
+              }
+            },
+            "font": "$font.button",
+            "color": {
+              "match": {
+                "prop": "variant"
+              },
+              "cases": {
+                "primary": "$color.onAccent",
+                "secondary": "$color.onInverse",
+                "outline": "$color.text",
+                "ghost": "$color.text"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "IconButton": {
+      "description": "A square icon-only action. Tool pickers use it with active.",
+      "props": {
+        "icon": {
+          "type": "string"
+        },
+        "active": {
+          "type": "boolean",
+          "default": false,
+          "description": "Selected tool: inverted fill."
+        },
+        "size": {
+          "type": "enum",
+          "of": [
+            "sm",
+            "md"
+          ],
+          "default": "md"
+        },
+        "bordered": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "root": {
+        "id": "root",
+        "type": "box",
+        "layout": "stack",
+        "align": "center",
+        "justify": "center",
+        "width": {
+          "match": {
+            "prop": "size"
+          },
+          "cases": {
+            "sm": 32,
+            "md": 40
+          }
+        },
+        "height": {
+          "match": {
+            "prop": "size"
+          },
+          "cases": {
+            "sm": 32,
+            "md": 40
+          }
+        },
+        "background": {
+          "match": {
+            "prop": "active"
+          },
+          "cases": {
+            "true": "$color.inverse",
+            "false": "$color.surface"
+          }
+        },
+        "border": {
+          "match": {
+            "prop": "bordered"
+          },
+          "cases": {
+            "true": "$border.default",
+            "false": {
+              "width": 2,
+              "color": "$color.transparent",
+              "style": "solid"
+            }
+          }
+        },
+        "shadow": {
+          "match": {
+            "prop": "active"
+          },
+          "cases": {
+            "true": "$shadow.none",
+            "false": {
+              "match": {
+                "prop": "bordered"
+              },
+              "cases": {
+                "true": "$shadow.xs",
+                "false": "$shadow.none"
+              }
+            }
+          }
+        },
+        "children": [
+          {
+            "id": "icon",
+            "type": "icon",
+            "name": {
+              "prop": "icon"
+            },
+            "size": {
+              "match": {
+                "prop": "size"
+              },
+              "cases": {
+                "sm": 16,
+                "md": 18
+              }
+            },
+            "color": {
+              "match": {
+                "prop": "active"
+              },
+              "cases": {
+                "true": "$color.onInverse",
+                "false": "$color.text"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "ButtonGroup": {
+      "description": "Buttons that belong together, in a row.",
+      "props": {
+        "items": {
+          "type": "slot"
+        }
+      },
+      "root": {
+        "id": "root",
+        "type": "box",
+        "layout": "stack",
+        "direction": "row",
+        "gap": "$space.3",
+        "align": "center",
+        "children": [
+          {
+            "slot": "items"
+          }
+        ]
+      }
+    }
+  },
+  "artboards": [
+    {
+      "id": "button-specimens",
+      "name": "Button — variants × states",
+      "size": {
+        "width": 760,
+        "height": "auto"
+      },
+      "background": "$color.bg",
+      "root": {
+        "id": "root",
+        "type": "box",
+        "layout": "stack",
+        "direction": "column",
+        "gap": "$space.6",
+        "padding": "$space.8",
+        "children": [
+          {
+            "id": "head",
+            "type": "box",
+            "layout": "grid",
+            "columns": 5,
+            "gap": "$space.4",
+            "children": [
+              {
+                "id": "h-0",
+                "type": "text",
+                "value": "",
+                "font": "$font.label",
+                "textTransform": "uppercase",
+                "color": "$color.textMuted"
+              },
+              {
+                "id": "h-default",
+                "type": "text",
+                "value": "default",
+                "font": "$font.label",
+                "textTransform": "uppercase",
+                "color": "$color.textMuted"
+              },
+              {
+                "id": "h-hover",
+                "type": "text",
+                "value": "hover",
+                "font": "$font.label",
+                "textTransform": "uppercase",
+                "color": "$color.textMuted"
+              },
+              {
+                "id": "h-pressed",
+                "type": "text",
+                "value": "pressed",
+                "font": "$font.label",
+                "textTransform": "uppercase",
+                "color": "$color.textMuted"
+              },
+              {
+                "id": "h-disabled",
+                "type": "text",
+                "value": "disabled",
+                "font": "$font.label",
+                "textTransform": "uppercase",
+                "color": "$color.textMuted"
+              }
+            ]
+          },
+          {
+            "id": "row-primary",
+            "type": "box",
+            "layout": "grid",
+            "columns": 5,
+            "gap": "$space.4",
+            "align": "center",
+            "children": [
+              {
+                "id": "l-primary",
+                "type": "text",
+                "value": "primary",
+                "font": "$font.label",
+                "textTransform": "uppercase",
+                "color": "$color.textMuted"
+              },
+              {
+                "id": "b-primary-default",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "primary",
+                  "state": "default"
+                },
+                "alignSelf": "start"
+              },
+              {
+                "id": "b-primary-hover",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "primary",
+                  "state": "hover"
+                },
+                "alignSelf": "start"
+              },
+              {
+                "id": "b-primary-pressed",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "primary",
+                  "state": "pressed"
+                },
+                "alignSelf": "start"
+              },
+              {
+                "id": "b-primary-disabled",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "primary",
+                  "state": "disabled"
+                },
+                "alignSelf": "start"
+              }
+            ]
+          },
+          {
+            "id": "row-secondary",
+            "type": "box",
+            "layout": "grid",
+            "columns": 5,
+            "gap": "$space.4",
+            "align": "center",
+            "children": [
+              {
+                "id": "l-secondary",
+                "type": "text",
+                "value": "secondary",
+                "font": "$font.label",
+                "textTransform": "uppercase",
+                "color": "$color.textMuted"
+              },
+              {
+                "id": "b-secondary-default",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "secondary",
+                  "state": "default"
+                },
+                "alignSelf": "start"
+              },
+              {
+                "id": "b-secondary-hover",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "secondary",
+                  "state": "hover"
+                },
+                "alignSelf": "start"
+              },
+              {
+                "id": "b-secondary-pressed",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "secondary",
+                  "state": "pressed"
+                },
+                "alignSelf": "start"
+              },
+              {
+                "id": "b-secondary-disabled",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "secondary",
+                  "state": "disabled"
+                },
+                "alignSelf": "start"
+              }
+            ]
+          },
+          {
+            "id": "row-outline",
+            "type": "box",
+            "layout": "grid",
+            "columns": 5,
+            "gap": "$space.4",
+            "align": "center",
+            "children": [
+              {
+                "id": "l-outline",
+                "type": "text",
+                "value": "outline",
+                "font": "$font.label",
+                "textTransform": "uppercase",
+                "color": "$color.textMuted"
+              },
+              {
+                "id": "b-outline-default",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "outline",
+                  "state": "default"
+                },
+                "alignSelf": "start"
+              },
+              {
+                "id": "b-outline-hover",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "outline",
+                  "state": "hover"
+                },
+                "alignSelf": "start"
+              },
+              {
+                "id": "b-outline-pressed",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "outline",
+                  "state": "pressed"
+                },
+                "alignSelf": "start"
+              },
+              {
+                "id": "b-outline-disabled",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "outline",
+                  "state": "disabled"
+                },
+                "alignSelf": "start"
+              }
+            ]
+          },
+          {
+            "id": "row-ghost",
+            "type": "box",
+            "layout": "grid",
+            "columns": 5,
+            "gap": "$space.4",
+            "align": "center",
+            "children": [
+              {
+                "id": "l-ghost",
+                "type": "text",
+                "value": "ghost",
+                "font": "$font.label",
+                "textTransform": "uppercase",
+                "color": "$color.textMuted"
+              },
+              {
+                "id": "b-ghost-default",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "ghost",
+                  "state": "default"
+                },
+                "alignSelf": "start"
+              },
+              {
+                "id": "b-ghost-hover",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "ghost",
+                  "state": "hover"
+                },
+                "alignSelf": "start"
+              },
+              {
+                "id": "b-ghost-pressed",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "ghost",
+                  "state": "pressed"
+                },
+                "alignSelf": "start"
+              },
+              {
+                "id": "b-ghost-disabled",
+                "use": "Button",
+                "props": {
+                  "label": "Export",
+                  "variant": "ghost",
+                  "state": "disabled"
+                },
+                "alignSelf": "start"
+              }
+            ]
+          },
+          {
+            "id": "sizes",
+            "type": "box",
+            "layout": "stack",
+            "direction": "row",
+            "gap": "$space.4",
+            "align": "center",
+            "children": [
+              {
+                "id": "s-sm",
+                "use": "Button",
+                "props": {
+                  "label": "Small",
+                  "size": "sm"
+                }
+              },
+              {
+                "id": "s-md",
+                "use": "Button",
+                "props": {
+                  "label": "Medium",
+                  "size": "md",
+                  "hasIcon": true,
+                  "icon": "plus"
+                }
+              },
+              {
+                "id": "s-lg",
+                "use": "Button",
+                "props": {
+                  "label": "Next stitch",
+                  "size": "lg",
+                  "hasIcon": true,
+                  "icon": "arrow-right"
+                }
+              }
+            ]
+          },
+          {
+            "id": "icons",
+            "type": "box",
+            "layout": "stack",
+            "direction": "row",
+            "gap": "$space.3",
+            "align": "center",
+            "children": [
+              {
+                "id": "i1",
+                "use": "IconButton",
+                "props": {
+                  "icon": "pencil",
+                  "active": true
+                }
+              },
+              {
+                "id": "i2",
+                "use": "IconButton",
+                "props": {
+                  "icon": "eraser"
+                }
+              },
+              {
+                "id": "i3",
+                "use": "IconButton",
+                "props": {
+                  "icon": "paint-bucket"
+                }
+              },
+              {
+                "id": "i4",
+                "use": "IconButton",
+                "props": {
+                  "icon": "undo-2",
+                  "size": "sm"
+                }
+              },
+              {
+                "id": "i5",
+                "use": "IconButton",
+                "props": {
+                  "icon": "redo-2",
+                  "size": "sm"
+                }
+              },
+              {
+                "id": "i6",
+                "use": "IconButton",
+                "props": {
+                  "icon": "ellipsis",
+                  "bordered": false
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

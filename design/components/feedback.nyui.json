@@ -1,0 +1,296 @@
+{
+  "schema": 3,
+  "name": "Feedback",
+  "meta": {
+    "group": "Feedback",
+    "order": 1,
+    "status": "draft",
+    "description": "Badges, progress and counters.",
+    "usage": {
+      "do": [
+        "Use yellow (highlight) for in-progress, moss for finished."
+      ],
+      "dont": [
+        "Use red for anything that is not the primary action, the active row or an error."
+      ]
+    }
+  },
+  "components": {
+    "Badge": {
+      "description": "A small status label. Uppercase, tight, boxed.",
+      "props": {
+        "label": {
+          "type": "string"
+        },
+        "variant": {
+          "type": "enum",
+          "of": [
+            "neutral",
+            "accent",
+            "highlight",
+            "success",
+            "inverse"
+          ],
+          "default": "neutral"
+        }
+      },
+      "root": {
+        "id": "root",
+        "type": "box",
+        "layout": "stack",
+        "direction": "row",
+        "align": "center",
+        "padding": [
+          "$space.xs",
+          "$space.2"
+        ],
+        "border": "$border.thin",
+        "background": {
+          "match": {
+            "prop": "variant"
+          },
+          "cases": {
+            "neutral": "$color.surface",
+            "accent": "$color.accent",
+            "highlight": "$color.highlight",
+            "success": "$color.success",
+            "inverse": "$color.inverse"
+          }
+        },
+        "children": [
+          {
+            "id": "label",
+            "type": "text",
+            "value": {
+              "prop": "label"
+            },
+            "font": "$font.label",
+            "textTransform": "uppercase",
+            "color": {
+              "match": {
+                "prop": "variant"
+              },
+              "cases": {
+                "neutral": "$color.text",
+                "accent": "$color.onAccent",
+                "highlight": "$color.onHighlight",
+                "success": "$color.white",
+                "inverse": "$color.onInverse"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "ProgressBar": {
+      "description": "How far along a pattern is. A framed track filled with yarn red.",
+      "props": {
+        "value": {
+          "type": "string",
+          "default": "0%",
+          "description": "Width of the fill, e.g. 42%."
+        },
+        "tall": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "root": {
+        "id": "root",
+        "type": "box",
+        "height": {
+          "match": {
+            "prop": "tall"
+          },
+          "cases": {
+            "true": 20,
+            "false": 12
+          }
+        },
+        "border": "$border.default",
+        "background": "$color.surface",
+        "overflow": "hidden",
+        "children": [
+          {
+            "id": "fill",
+            "type": "box",
+            "height": "full",
+            "width": {
+              "prop": "value"
+            },
+            "background": "$color.accent"
+          }
+        ]
+      }
+    },
+    "Stat": {
+      "description": "A number with a label under it. Counters in the tracker and editor.",
+      "props": {
+        "value": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "big": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "root": {
+        "id": "root",
+        "type": "box",
+        "layout": "stack",
+        "direction": "column",
+        "gap": "$space.1",
+        "children": [
+          {
+            "id": "v",
+            "type": "text",
+            "value": {
+              "prop": "value"
+            },
+            "font": {
+              "match": {
+                "prop": "big"
+              },
+              "cases": {
+                "true": "$font.counter",
+                "false": "$font.h2"
+              }
+            }
+          },
+          {
+            "id": "l",
+            "type": "text",
+            "value": {
+              "prop": "label"
+            },
+            "font": "$font.label",
+            "textTransform": "uppercase",
+            "color": "$color.textMuted"
+          }
+        ]
+      }
+    }
+  },
+  "artboards": [
+    {
+      "id": "feedback-specimens",
+      "name": "Feedback — badges, progress, stats",
+      "size": {
+        "width": 760,
+        "height": "auto"
+      },
+      "background": "$color.bg",
+      "root": {
+        "id": "root",
+        "type": "box",
+        "layout": "stack",
+        "direction": "column",
+        "gap": "$space.6",
+        "padding": "$space.8",
+        "children": [
+          {
+            "id": "badges",
+            "type": "box",
+            "layout": "stack",
+            "direction": "row",
+            "gap": "$space.3",
+            "children": [
+              {
+                "id": "b1",
+                "use": "Badge",
+                "props": {
+                  "label": "Not started"
+                }
+              },
+              {
+                "id": "b2",
+                "use": "Badge",
+                "props": {
+                  "label": "In progress",
+                  "variant": "highlight"
+                }
+              },
+              {
+                "id": "b3",
+                "use": "Badge",
+                "props": {
+                  "label": "Finished",
+                  "variant": "success"
+                }
+              },
+              {
+                "id": "b4",
+                "use": "Badge",
+                "props": {
+                  "label": "Row 6 ←",
+                  "variant": "accent"
+                }
+              },
+              {
+                "id": "b5",
+                "use": "Badge",
+                "props": {
+                  "label": ".knitpx",
+                  "variant": "inverse"
+                }
+              }
+            ]
+          },
+          {
+            "id": "p1",
+            "use": "ProgressBar",
+            "props": {
+              "value": "38%"
+            }
+          },
+          {
+            "id": "p2",
+            "use": "ProgressBar",
+            "props": {
+              "value": "72%",
+              "tall": true
+            }
+          },
+          {
+            "id": "stats",
+            "type": "box",
+            "layout": "stack",
+            "direction": "row",
+            "gap": "$space.10",
+            "children": [
+              {
+                "id": "s1",
+                "use": "Stat",
+                "props": {
+                  "value": "6/13",
+                  "label": "Row",
+                  "big": true
+                }
+              },
+              {
+                "id": "s2",
+                "use": "Stat",
+                "props": {
+                  "value": "7/15",
+                  "label": "Stitch",
+                  "big": true
+                }
+              },
+              {
+                "id": "s3",
+                "use": "Stat",
+                "props": {
+                  "value": "41%",
+                  "label": "Done"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

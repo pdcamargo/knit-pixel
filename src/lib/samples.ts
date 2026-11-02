@@ -1,0 +1,50 @@
+import { fromBitmap, type Pattern } from "./pattern";
+
+// Starter patterns shown on first launch. Top row first, X = fill.
+export function samplePatterns(): Pattern[] {
+  return [
+    fromBitmap("Heart", [
+      "...............",
+      "...XX.....XX...",
+      "..XXXX...XXXX..",
+      ".XXXXXX.XXXXXX.",
+      ".XXXXXXXXXXXXX.",
+      ".XXXXXXXXXXXXX.",
+      "..XXXXXXXXXXX..",
+      "...XXXXXXXXX...",
+      "....XXXXXXX....",
+      ".....XXXXX.....",
+      "......XXX......",
+      ".......X.......",
+      "...............",
+    ]),
+    fromBitmap("Ace of spades", [
+      "..................",
+      "..XX..............",
+      ".X..X.............",
+      ".XXXX.............",
+      ".X..X.............",
+      ".X..X.............",
+      "..................",
+      ".........X........",
+      "........XXX.......",
+      ".......XXXXX......",
+      "......XXXXXXX.....",
+      ".....XXXXXXXXX....",
+      "....XXXXXXXXXXX...",
+      "....XXXXXXXXXXX...",
+      "....XXXXXXXXXXX...",
+      ".....XXX.X.XXX....",
+      ".........X........",
+      "........XXX.......",
+      ".......XXXXX......",
+      "..................",
+      ".............X..X.",
+      ".............X..X.",
+      ".............XXXX.",
+      ".............X..X.",
+      "..............XX..",
+      "..................",
+    ]),
+  ];
+}

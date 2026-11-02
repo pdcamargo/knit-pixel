@@ -1,0 +1,3660 @@
+{
+  "schema": 3,
+  "name": "Stitch",
+  "meta": {
+    "group": "Chart",
+    "order": 1,
+    "status": "draft",
+    "description": "The chart's vocabulary. Stitch colours never follow dark mode: a chart is paper and ink. Finished stitches are cross-hatched in the app (this canvas can only show their flat tone).",
+    "usage": {
+      "do": [
+        "Draw grids with 1px gray lines, a darker line every 10 stitches from the bottom-left, and a 2px black frame.",
+        "Highlight exactly one current stitch with a yellow ring.",
+        "Cross-hatch finished stitches over a dark (fill) or white (chain) base, so both stay readable."
+      ],
+      "dont": [
+        "Invert the chart in dark mode.",
+        "Use red on the chart for anything but the active row marker."
+      ]
+    }
+  },
+  "components": {
+    "StitchCell": {
+      "description": "One stitch on the chart. Fill is a full square, chain is an open square.",
+      "props": {
+        "state": {
+          "type": "enum",
+          "of": [
+            "fill",
+            "chain",
+            "doneFill",
+            "doneChain",
+            "current"
+          ],
+          "default": "fill"
+        },
+        "size": {
+          "type": "number",
+          "default": 24
+        }
+      },
+      "root": {
+        "id": "root",
+        "type": "box",
+        "width": {
+          "prop": "size"
+        },
+        "height": {
+          "prop": "size"
+        },
+        "border": {
+          "match": {
+            "prop": "state"
+          },
+          "cases": {
+            "current": "$border.default",
+            "fill": "$border.thin",
+            "chain": "$border.thin",
+            "doneFill": "$border.thin",
+            "doneChain": "$border.thin"
+          }
+        },
+        "background": {
+          "match": {
+            "prop": "state"
+          },
+          "cases": {
+            "fill": "$color.stitchFilled",
+            "chain": "$color.stitchChain",
+            "doneFill": "$color.stitchDoneFilled",
+            "doneChain": "$color.stitchDone",
+            "current": "$color.stitchCurrent"
+          }
+        }
+      }
+    },
+    "StitchRun": {
+      "description": "A run of identical stitches in a row's instructions: '9 fill'. Done runs fade, the active one is outlined.",
+      "props": {
+        "kind": {
+          "type": "enum",
+          "of": [
+            "fill",
+            "chain"
+          ]
+        },
+        "count": {
+          "type": "string",
+          "description": "How many in the run, e.g. 9."
+        },
+        "status": {
+          "type": "enum",
+          "of": [
+            "todo",
+            "active",
+            "done"
+          ],
+          "default": "todo"
+        }
+      },
+      "root": {
+        "id": "root",
+        "type": "box",
+        "layout": "stack",
+        "direction": "row",
+        "align": "center",
+        "gap": "$space.2",
+        "padding": [
+          "$space.1",
+          "$space.2"
+        ],
+        "border": {
+          "match": {
+            "prop": "status"
+          },
+          "cases": {
+            "todo": "$border.default",
+            "active": "$border.accent",
+            "done": "$border.subtle"
+          }
+        },
+        "background": {
+          "match": {
+            "prop": "status"
+          },
+          "cases": {
+            "todo": "$color.surface",
+            "active": "$color.highlightSubtle",
+            "done": "$color.surfaceSunken"
+          }
+        },
+        "shadow": {
+          "match": {
+            "prop": "status"
+          },
+          "cases": {
+            "todo": "$shadow.none",
+            "active": "$shadow.xs",
+            "done": "$shadow.none"
+          }
+        },
+        "opacity": {
+          "match": {
+            "prop": "status"
+          },
+          "cases": {
+            "todo": 1,
+            "active": 1,
+            "done": 0.5
+          }
+        },
+        "children": [
+          {
+            "id": "sw",
+            "type": "box",
+            "width": 14,
+            "height": 14,
+            "border": "$border.thin",
+            "background": {
+              "match": {
+                "prop": "kind"
+              },
+              "cases": {
+                "fill": "$color.stitchFilled",
+                "chain": "$color.stitchChain"
+              }
+            }
+          },
+          {
+            "id": "n",
+            "type": "text",
+            "value": {
+              "prop": "count"
+            },
+            "font": "$font.mono"
+          },
+          {
+            "id": "k",
+            "type": "text",
+            "value": {
+              "match": {
+                "prop": "kind"
+              },
+              "cases": {
+                "fill": "fill",
+                "chain": "chain"
+              }
+            },
+            "font": "$font.smallStrong"
+          }
+        ]
+      }
+    },
+    "ZoomControls": {
+      "description": "Zoom out, fit, zoom in. Sits bottom-right over every chart. Fit is active until the user zooms or pans.",
+      "props": {
+        "fitted": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "root": {
+        "id": "root",
+        "type": "box",
+        "layout": "stack",
+        "direction": "row",
+        "gap": "$space.2",
+        "children": [
+          {
+            "id": "out",
+            "use": "IconButton",
+            "props": {
+              "icon": "zoom-out",
+              "size": "sm"
+            }
+          },
+          {
+            "id": "fit",
+            "use": "IconButton",
+            "props": {
+              "icon": "maximize",
+              "size": "sm",
+              "active": {
+                "prop": "fitted"
+              }
+            }
+          },
+          {
+            "id": "in",
+            "use": "IconButton",
+            "props": {
+              "icon": "zoom-in",
+              "size": "sm"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "artboards": [
+    {
+      "id": "stitch-specimens",
+      "name": "Stitch — cells and runs",
+      "size": {
+        "width": 760,
+        "height": "auto"
+      },
+      "background": "$color.bg",
+      "root": {
+        "id": "root",
+        "type": "box",
+        "layout": "stack",
+        "direction": "column",
+        "gap": "$space.8",
+        "padding": "$space.8",
+        "children": [
+          {
+            "id": "cells",
+            "type": "box",
+            "layout": "stack",
+            "direction": "row",
+            "gap": "$space.6",
+            "children": [
+              {
+                "id": "c-fill",
+                "type": "box",
+                "layout": "stack",
+                "direction": "column",
+                "gap": "$space.2",
+                "align": "center",
+                "children": [
+                  {
+                    "id": "c-fill-cell",
+                    "use": "StitchCell",
+                    "props": {
+                      "state": "fill",
+                      "size": 40
+                    }
+                  },
+                  {
+                    "id": "c-fill-l",
+                    "type": "text",
+                    "value": "fill",
+                    "font": "$font.label",
+                    "textTransform": "uppercase",
+                    "color": "$color.textMuted"
+                  }
+                ]
+              },
+              {
+                "id": "c-chain",
+                "type": "box",
+                "layout": "stack",
+                "direction": "column",
+                "gap": "$space.2",
+                "align": "center",
+                "children": [
+                  {
+                    "id": "c-chain-cell",
+                    "use": "StitchCell",
+                    "props": {
+                      "state": "chain",
+                      "size": 40
+                    }
+                  },
+                  {
+                    "id": "c-chain-l",
+                    "type": "text",
+                    "value": "chain",
+                    "font": "$font.label",
+                    "textTransform": "uppercase",
+                    "color": "$color.textMuted"
+                  }
+                ]
+              },
+              {
+                "id": "c-doneFill",
+                "type": "box",
+                "layout": "stack",
+                "direction": "column",
+                "gap": "$space.2",
+                "align": "center",
+                "children": [
+                  {
+                    "id": "c-doneFill-cell",
+                    "use": "StitchCell",
+                    "props": {
+                      "state": "doneFill",
+                      "size": 40
+                    }
+                  },
+                  {
+                    "id": "c-doneFill-l",
+                    "type": "text",
+                    "value": "doneFill",
+                    "font": "$font.label",
+                    "textTransform": "uppercase",
+                    "color": "$color.textMuted"
+                  }
+                ]
+              },
+              {
+                "id": "c-doneChain",
+                "type": "box",
+                "layout": "stack",
+                "direction": "column",
+                "gap": "$space.2",
+                "align": "center",
+                "children": [
+                  {
+                    "id": "c-doneChain-cell",
+                    "use": "StitchCell",
+                    "props": {
+                      "state": "doneChain",
+                      "size": 40
+                    }
+                  },
+                  {
+                    "id": "c-doneChain-l",
+                    "type": "text",
+                    "value": "doneChain",
+                    "font": "$font.label",
+                    "textTransform": "uppercase",
+                    "color": "$color.textMuted"
+                  }
+                ]
+              },
+              {
+                "id": "c-current",
+                "type": "box",
+                "layout": "stack",
+                "direction": "column",
+                "gap": "$space.2",
+                "align": "center",
+                "children": [
+                  {
+                    "id": "c-current-cell",
+                    "use": "StitchCell",
+                    "props": {
+                      "state": "current",
+                      "size": 40
+                    }
+                  },
+                  {
+                    "id": "c-current-l",
+                    "type": "text",
+                    "value": "current",
+                    "font": "$font.label",
+                    "textTransform": "uppercase",
+                    "color": "$color.textMuted"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "runs",
+            "type": "box",
+            "layout": "stack",
+            "direction": "row",
+            "gap": "$space.2",
+            "wrap": true,
+            "children": [
+              {
+                "id": "r1",
+                "use": "StitchRun",
+                "props": {
+                  "kind": "chain",
+                  "count": "3",
+                  "status": "done"
+                }
+              },
+              {
+                "id": "r2",
+                "use": "StitchRun",
+                "props": {
+                  "kind": "fill",
+                  "count": "9",
+                  "status": "active"
+                }
+              },
+              {
+                "id": "r3",
+                "use": "StitchRun",
+                "props": {
+                  "kind": "chain",
+                  "count": "3"
+                }
+              }
+            ]
+          },
+          {
+            "id": "zc",
+            "use": "ZoomControls"
+          },
+          {
+            "id": "grids",
+            "type": "box",
+            "layout": "stack",
+            "direction": "row",
+            "gap": "$space.8",
+            "align": "start",
+            "children": [
+              {
+                "id": "g1-grid",
+                "type": "box",
+                "layout": "stack",
+                "direction": "column",
+                "gap": "$space.px",
+                "padding": "$space.px",
+                "background": "$color.stitchGrid",
+                "border": "$border.default",
+                "children": [
+                  {
+                    "id": "g1-r0",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "row",
+                    "gap": "$space.px",
+                    "children": [
+                      {
+                        "id": "g1-0-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-1-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-2-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-3-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-4-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-5-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-6-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-7-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-8-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-9-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-10-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-11-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-12-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-13-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-14-0",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "g1-r1",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "row",
+                    "gap": "$space.px",
+                    "children": [
+                      {
+                        "id": "g1-0-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-1-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-2-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-3-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-4-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-5-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-6-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-7-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-8-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-9-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-10-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-11-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-12-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-13-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-14-1",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "g1-r2",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "row",
+                    "gap": "$space.px",
+                    "children": [
+                      {
+                        "id": "g1-0-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-1-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-2-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-3-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-4-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-5-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-6-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-7-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-8-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-9-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-10-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-11-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-12-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-13-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-14-2",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "g1-r3",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "row",
+                    "gap": "$space.px",
+                    "children": [
+                      {
+                        "id": "g1-0-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-1-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-2-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-3-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-4-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-5-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-6-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-7-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-8-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-9-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-10-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-11-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-12-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-13-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-14-3",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "g1-r4",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "row",
+                    "gap": "$space.px",
+                    "children": [
+                      {
+                        "id": "g1-0-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-1-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-2-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-3-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-4-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-5-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-6-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-7-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-8-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-9-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-10-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-11-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-12-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-13-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-14-4",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "g1-r5",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "row",
+                    "gap": "$space.px",
+                    "children": [
+                      {
+                        "id": "g1-0-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-1-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-2-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-3-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-4-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-5-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-6-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-7-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-8-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-9-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-10-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-11-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-12-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-13-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-14-5",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "g1-r6",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "row",
+                    "gap": "$space.px",
+                    "children": [
+                      {
+                        "id": "g1-0-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-1-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-2-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-3-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-4-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-5-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-6-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-7-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-8-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-9-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-10-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-11-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-12-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-13-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-14-6",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "g1-r7",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "row",
+                    "gap": "$space.px",
+                    "children": [
+                      {
+                        "id": "g1-0-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-1-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-2-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-3-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-4-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-5-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-6-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-7-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-8-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-9-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-10-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-11-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-12-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-13-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-14-7",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "g1-r8",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "row",
+                    "gap": "$space.px",
+                    "children": [
+                      {
+                        "id": "g1-0-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-1-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-2-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-3-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-4-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-5-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-6-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-7-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-8-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-9-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-10-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-11-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-12-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-13-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-14-8",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "g1-r9",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "row",
+                    "gap": "$space.px",
+                    "children": [
+                      {
+                        "id": "g1-0-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-1-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-2-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-3-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-4-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-5-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-6-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-7-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-8-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-9-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-10-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-11-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-12-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-13-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-14-9",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "g1-r10",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "row",
+                    "gap": "$space.px",
+                    "children": [
+                      {
+                        "id": "g1-0-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-1-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-2-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-3-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-4-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-5-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-6-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-7-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-8-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-9-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-10-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-11-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-12-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-13-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-14-10",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "g1-r11",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "row",
+                    "gap": "$space.px",
+                    "children": [
+                      {
+                        "id": "g1-0-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-1-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-2-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-3-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-4-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-5-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-6-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-7-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchFilled"
+                      },
+                      {
+                        "id": "g1-8-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-9-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-10-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-11-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-12-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-13-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-14-11",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "g1-r12",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "row",
+                    "gap": "$space.px",
+                    "children": [
+                      {
+                        "id": "g1-0-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-1-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-2-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-3-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-4-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-5-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-6-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-7-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-8-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-9-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-10-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-11-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-12-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-13-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      },
+                      {
+                        "id": "g1-14-12",
+                        "type": "box",
+                        "width": 16,
+                        "height": 16,
+                        "background": "$color.stitchChain"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "g2-wrap",
+                "type": "box",
+                "layout": "stack",
+                "direction": "row",
+                "gap": "$space.2",
+                "align": "start",
+                "children": [
+                  {
+                    "id": "g2-grid",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "column",
+                    "gap": "$space.px",
+                    "padding": "$space.px",
+                    "background": "$color.stitchGrid",
+                    "border": "$border.default",
+                    "children": [
+                      {
+                        "id": "g2-r0",
+                        "type": "box",
+                        "layout": "stack",
+                        "direction": "row",
+                        "gap": "$space.px",
+                        "children": [
+                          {
+                            "id": "g2-0-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-1-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-2-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-3-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-4-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-5-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-6-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-7-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-8-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-9-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-10-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-11-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-12-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-13-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-14-0",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "g2-r1",
+                        "type": "box",
+                        "layout": "stack",
+                        "direction": "row",
+                        "gap": "$space.px",
+                        "children": [
+                          {
+                            "id": "g2-0-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-1-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-2-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-3-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-4-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-5-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-6-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-7-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-8-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-9-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-10-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-11-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-12-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-13-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-14-1",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "g2-r2",
+                        "type": "box",
+                        "layout": "stack",
+                        "direction": "row",
+                        "gap": "$space.px",
+                        "children": [
+                          {
+                            "id": "g2-0-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-1-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-2-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-3-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-4-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-5-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-6-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-7-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-8-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-9-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-10-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-11-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-12-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-13-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-14-2",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "g2-r3",
+                        "type": "box",
+                        "layout": "stack",
+                        "direction": "row",
+                        "gap": "$space.px",
+                        "children": [
+                          {
+                            "id": "g2-0-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-1-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-2-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-3-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-4-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-5-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-6-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-7-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-8-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-9-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-10-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-11-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-12-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-13-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-14-3",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "g2-r4",
+                        "type": "box",
+                        "layout": "stack",
+                        "direction": "row",
+                        "gap": "$space.px",
+                        "children": [
+                          {
+                            "id": "g2-0-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-1-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-2-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-3-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-4-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-5-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-6-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-7-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-8-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-9-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-10-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-11-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-12-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-13-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-14-4",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "g2-r5",
+                        "type": "box",
+                        "layout": "stack",
+                        "direction": "row",
+                        "gap": "$space.px",
+                        "children": [
+                          {
+                            "id": "g2-0-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-1-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-2-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-3-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-4-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-5-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-6-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-7-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-8-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-9-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-10-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-11-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-12-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-13-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-14-5",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "g2-r6",
+                        "type": "box",
+                        "layout": "stack",
+                        "direction": "row",
+                        "gap": "$space.px",
+                        "children": [
+                          {
+                            "id": "g2-0-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-1-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-2-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-3-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-4-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-5-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-6-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-7-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-8-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-9-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-10-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-11-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-12-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-13-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-14-6",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "g2-r7",
+                        "type": "box",
+                        "layout": "stack",
+                        "direction": "row",
+                        "gap": "$space.px",
+                        "children": [
+                          {
+                            "id": "g2-0-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-1-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-2-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchChain"
+                          },
+                          {
+                            "id": "g2-3-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-4-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-5-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-6-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-7-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchFilled"
+                          },
+                          {
+                            "id": "g2-8-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchCurrent",
+                            "border": {
+                              "width": 3,
+                              "color": "$color.black",
+                              "style": "solid"
+                            }
+                          },
+                          {
+                            "id": "g2-9-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-10-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-11-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-12-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-13-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-14-7",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "g2-r8",
+                        "type": "box",
+                        "layout": "stack",
+                        "direction": "row",
+                        "gap": "$space.px",
+                        "children": [
+                          {
+                            "id": "g2-0-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-1-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-2-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-3-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-4-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-5-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-6-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-7-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-8-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-9-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-10-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-11-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-12-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-13-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-14-8",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "g2-r9",
+                        "type": "box",
+                        "layout": "stack",
+                        "direction": "row",
+                        "gap": "$space.px",
+                        "children": [
+                          {
+                            "id": "g2-0-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-1-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-2-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-3-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-4-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-5-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-6-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-7-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-8-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-9-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-10-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-11-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-12-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-13-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-14-9",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "g2-r10",
+                        "type": "box",
+                        "layout": "stack",
+                        "direction": "row",
+                        "gap": "$space.px",
+                        "children": [
+                          {
+                            "id": "g2-0-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-1-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-2-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-3-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-4-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-5-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-6-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-7-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-8-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-9-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-10-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-11-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-12-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-13-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-14-10",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "g2-r11",
+                        "type": "box",
+                        "layout": "stack",
+                        "direction": "row",
+                        "gap": "$space.px",
+                        "children": [
+                          {
+                            "id": "g2-0-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-1-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-2-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-3-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-4-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-5-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-6-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-7-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDoneFilled"
+                          },
+                          {
+                            "id": "g2-8-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-9-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-10-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-11-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-12-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-13-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-14-11",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "g2-r12",
+                        "type": "box",
+                        "layout": "stack",
+                        "direction": "row",
+                        "gap": "$space.px",
+                        "children": [
+                          {
+                            "id": "g2-0-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-1-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-2-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-3-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-4-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-5-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-6-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-7-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-8-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-9-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-10-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-11-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-12-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-13-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          },
+                          {
+                            "id": "g2-14-12",
+                            "type": "box",
+                            "width": 16,
+                            "height": 16,
+                            "background": "$color.stitchDone"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "g2-nums",
+                    "type": "box",
+                    "layout": "stack",
+                    "direction": "column",
+                    "gap": "$space.px",
+                    "padding": [
+                      3,
+                      0
+                    ],
+                    "children": [
+                      {
+                        "id": "g2-n0",
+                        "type": "text",
+                        "value": "13",
+                        "font": "$font.monoSmall",
+                        "height": 16,
+                        "width": 28,
+                        "padding": [
+                          0,
+                          4
+                        ],
+                        "color": "$color.text",
+                        "background": "$color.transparent",
+                        "textAlign": "center"
+                      },
+                      {
+                        "id": "g2-n1",
+                        "type": "text",
+                        "value": "12",
+                        "font": "$font.monoSmall",
+                        "height": 16,
+                        "width": 28,
+                        "padding": [
+                          0,
+                          4
+                        ],
+                        "color": "$color.text",
+                        "background": "$color.transparent",
+                        "textAlign": "center"
+                      },
+                      {
+                        "id": "g2-n2",
+                        "type": "text",
+                        "value": "11",
+                        "font": "$font.monoSmall",
+                        "height": 16,
+                        "width": 28,
+                        "padding": [
+                          0,
+                          4
+                        ],
+                        "color": "$color.text",
+                        "background": "$color.transparent",
+                        "textAlign": "center"
+                      },
+                      {
+                        "id": "g2-n3",
+                        "type": "text",
+                        "value": "10",
+                        "font": "$font.monoSmall",
+                        "height": 16,
+                        "width": 28,
+                        "padding": [
+                          0,
+                          4
+                        ],
+                        "color": "$color.text",
+                        "background": "$color.transparent",
+                        "textAlign": "center"
+                      },
+                      {
+                        "id": "g2-n4",
+                        "type": "text",
+                        "value": "9",
+                        "font": "$font.monoSmall",
+                        "height": 16,
+                        "width": 28,
+                        "padding": [
+                          0,
+                          4
+                        ],
+                        "color": "$color.text",
+                        "background": "$color.transparent",
+                        "textAlign": "center"
+                      },
+                      {
+                        "id": "g2-n5",
+                        "type": "text",
+                        "value": "8",
+                        "font": "$font.monoSmall",
+                        "height": 16,
+                        "width": 28,
+                        "padding": [
+                          0,
+                          4
+                        ],
+                        "color": "$color.text",
+                        "background": "$color.transparent",
+                        "textAlign": "center"
+                      },
+                      {
+                        "id": "g2-n6",
+                        "type": "text",
+                        "value": "7",
+                        "font": "$font.monoSmall",
+                        "height": 16,
+                        "width": 28,
+                        "padding": [
+                          0,
+                          4
+                        ],
+                        "color": "$color.text",
+                        "background": "$color.transparent",
+                        "textAlign": "center"
+                      },
+                      {
+                        "id": "g2-n7",
+                        "type": "text",
+                        "value": "6",
+                        "font": "$font.monoSmall",
+                        "height": 16,
+                        "width": 28,
+                        "padding": [
+                          0,
+                          4
+                        ],
+                        "color": "$color.onAccent",
+                        "background": "$color.accent",
+                        "textAlign": "center"
+                      },
+                      {
+                        "id": "g2-n8",
+                        "type": "text",
+                        "value": "5",
+                        "font": "$font.monoSmall",
+                        "height": 16,
+                        "width": 28,
+                        "padding": [
+                          0,
+                          4
+                        ],
+                        "color": "$color.textMuted",
+                        "background": "$color.transparent",
+                        "textAlign": "center"
+                      },
+                      {
+                        "id": "g2-n9",
+                        "type": "text",
+                        "value": "4",
+                        "font": "$font.monoSmall",
+                        "height": 16,
+                        "width": 28,
+                        "padding": [
+                          0,
+                          4
+                        ],
+                        "color": "$color.textMuted",
+                        "background": "$color.transparent",
+                        "textAlign": "center"
+                      },
+                      {
+                        "id": "g2-n10",
+                        "type": "text",
+                        "value": "3",
+                        "font": "$font.monoSmall",
+                        "height": 16,
+                        "width": 28,
+                        "padding": [
+                          0,
+                          4
+                        ],
+                        "color": "$color.textMuted",
+                        "background": "$color.transparent",
+                        "textAlign": "center"
+                      },
+                      {
+                        "id": "g2-n11",
+                        "type": "text",
+                        "value": "2",
+                        "font": "$font.monoSmall",
+                        "height": 16,
+                        "width": 28,
+                        "padding": [
+                          0,
+                          4
+                        ],
+                        "color": "$color.textMuted",
+                        "background": "$color.transparent",
+                        "textAlign": "center"
+                      },
+                      {
+                        "id": "g2-n12",
+                        "type": "text",
+                        "value": "1",
+                        "font": "$font.monoSmall",
+                        "height": 16,
+                        "width": 28,
+                        "padding": [
+                          0,
+                          4
+                        ],
+                        "color": "$color.textMuted",
+                        "background": "$color.transparent",
+                        "textAlign": "center"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

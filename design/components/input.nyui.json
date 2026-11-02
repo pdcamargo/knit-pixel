@@ -1,0 +1,234 @@
+{
+  "schema": 3,
+  "name": "Input",
+  "meta": {
+    "group": "Inputs",
+    "order": 1,
+    "status": "draft",
+    "description": "Fields are boxes with a 2px frame; focus turns the frame red and lifts it.",
+    "usage": {
+      "do": [
+        "Label every field, in uppercase label type."
+      ],
+      "dont": [
+        "Use placeholder text as the label."
+      ]
+    }
+  },
+  "components": {
+    "TextField": {
+      "description": "A labelled single-line input.",
+      "props": {
+        "label": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "focused": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "root": {
+        "id": "root",
+        "type": "box",
+        "layout": "stack",
+        "direction": "column",
+        "gap": "$space.1",
+        "children": [
+          {
+            "id": "label",
+            "type": "text",
+            "value": {
+              "prop": "label"
+            },
+            "font": "$font.label",
+            "textTransform": "uppercase"
+          },
+          {
+            "id": "field",
+            "type": "box",
+            "padding": [
+              "$space.2",
+              "$space.3"
+            ],
+            "background": "$color.surface",
+            "border": {
+              "match": {
+                "prop": "focused"
+              },
+              "cases": {
+                "true": "$border.focus",
+                "false": "$border.default"
+              }
+            },
+            "shadow": {
+              "match": {
+                "prop": "focused"
+              },
+              "cases": {
+                "true": "$shadow.sm",
+                "false": "$shadow.none"
+              }
+            },
+            "children": [
+              {
+                "id": "value",
+                "type": "text",
+                "value": {
+                  "prop": "value"
+                },
+                "font": "$font.body"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "NumberStepper": {
+      "description": "A labelled number with minus and plus. Canvas width and height.",
+      "props": {
+        "label": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "root": {
+        "id": "root",
+        "type": "box",
+        "layout": "stack",
+        "direction": "column",
+        "gap": "$space.1",
+        "children": [
+          {
+            "id": "label",
+            "type": "text",
+            "value": {
+              "prop": "label"
+            },
+            "font": "$font.label",
+            "textTransform": "uppercase"
+          },
+          {
+            "id": "ctl",
+            "type": "box",
+            "layout": "stack",
+            "direction": "row",
+            "align": "center",
+            "border": "$border.default",
+            "background": "$color.surface",
+            "children": [
+              {
+                "id": "minus",
+                "type": "box",
+                "layout": "stack",
+                "align": "center",
+                "justify": "center",
+                "width": 34,
+                "height": 34,
+                "children": [
+                  {
+                    "id": "mi",
+                    "type": "icon",
+                    "name": "minus",
+                    "size": 16
+                  }
+                ]
+              },
+              {
+                "id": "d1",
+                "type": "box",
+                "width": 2,
+                "height": 34,
+                "background": "$color.border"
+              },
+              {
+                "id": "value",
+                "type": "text",
+                "value": {
+                  "prop": "value"
+                },
+                "font": "$font.mono",
+                "textAlign": "center",
+                "grow": 1
+              },
+              {
+                "id": "d2",
+                "type": "box",
+                "width": 2,
+                "height": 34,
+                "background": "$color.border"
+              },
+              {
+                "id": "plus",
+                "type": "box",
+                "layout": "stack",
+                "align": "center",
+                "justify": "center",
+                "width": 34,
+                "height": 34,
+                "children": [
+                  {
+                    "id": "pi",
+                    "type": "icon",
+                    "name": "plus",
+                    "size": 16
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "artboards": [
+    {
+      "id": "input-specimens",
+      "name": "Input — fields and steppers",
+      "size": {
+        "width": 760,
+        "height": "auto"
+      },
+      "background": "$color.bg",
+      "root": {
+        "id": "root",
+        "type": "box",
+        "layout": "grid",
+        "columns": 3,
+        "gap": "$space.6",
+        "padding": "$space.8",
+        "children": [
+          {
+            "id": "f1",
+            "use": "TextField",
+            "props": {
+              "label": "Pattern name",
+              "value": "Ace of spades"
+            }
+          },
+          {
+            "id": "f2",
+            "use": "TextField",
+            "props": {
+              "label": "Pattern name",
+              "value": "Ace of spades",
+              "focused": true
+            }
+          },
+          {
+            "id": "n1",
+            "use": "NumberStepper",
+            "props": {
+              "label": "Width",
+              "value": "18"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,199 @@
+{
+  "schema": 3,
+  "name": "App shell",
+  "meta": {
+    "group": "Patterns",
+    "order": 1,
+    "status": "draft",
+    "description": "The header every screen shares."
+  },
+  "components": {
+    "AppHeader": {
+      "description": "Top bar of every screen: logo, where you are, and the screen's actions.",
+      "props": {
+        "crumb": {
+          "type": "string",
+          "default": ""
+        },
+        "compact": {
+          "type": "boolean",
+          "default": false,
+          "description": "Phones: 56px tall, logo mark only, icon-only actions."
+        },
+        "actions": {
+          "type": "slot"
+        }
+      },
+      "root": {
+        "id": "root",
+        "type": "box",
+        "layout": "stack",
+        "direction": "column",
+        "background": "$color.surface",
+        "children": [
+          {
+            "id": "bar",
+            "type": "box",
+            "layout": "stack",
+            "direction": "row",
+            "align": "center",
+            "justify": "between",
+            "height": {
+              "match": {
+                "prop": "compact"
+              },
+              "cases": {
+                "true": 56,
+                "false": 68
+              }
+            },
+            "padding": [
+              0,
+              {
+                "match": {
+                  "prop": "compact"
+                },
+                "cases": {
+                  "true": "$space.3",
+                  "false": "$space.6"
+                }
+              }
+            ],
+            "children": [
+              {
+                "id": "left",
+                "type": "box",
+                "layout": "stack",
+                "direction": "row",
+                "align": "center",
+                "gap": {
+                  "match": {
+                    "prop": "compact"
+                  },
+                  "cases": {
+                    "true": "$space.2",
+                    "false": "$space.4"
+                  }
+                },
+                "children": [
+                  {
+                    "id": "logo",
+                    "use": "Logo",
+                    "props": {
+                      "size": {
+                        "match": {
+                          "prop": "compact"
+                        },
+                        "cases": {
+                          "true": "mark",
+                          "false": "sm"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": "slash",
+                    "type": "text",
+                    "value": "/",
+                    "font": "$font.h3",
+                    "color": "$color.textMuted"
+                  },
+                  {
+                    "id": "crumb",
+                    "type": "text",
+                    "value": {
+                      "prop": "crumb"
+                    },
+                    "font": "$font.bodyStrong"
+                  }
+                ]
+              },
+              {
+                "id": "actions",
+                "type": "box",
+                "layout": "stack",
+                "direction": "row",
+                "gap": {
+                  "match": {
+                    "prop": "compact"
+                  },
+                  "cases": {
+                    "true": "$space.2",
+                    "false": "$space.3"
+                  }
+                },
+                "align": "center",
+                "children": [
+                  {
+                    "slot": "actions"
+                  },
+                  {
+                    "id": "theme",
+                    "use": "IconButton",
+                    "props": {
+                      "icon": "moon",
+                      "bordered": false
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "rule",
+            "type": "box",
+            "height": 2,
+            "background": "$color.border"
+          }
+        ]
+      }
+    }
+  },
+  "artboards": [
+    {
+      "id": "app-shell",
+      "name": "App header",
+      "size": {
+        "width": 1280,
+        "height": "auto"
+      },
+      "background": "$color.bg",
+      "root": {
+        "id": "root",
+        "type": "box",
+        "children": [
+          {
+            "id": "hdr",
+            "use": "AppHeader",
+            "props": {
+              "crumb": "Library"
+            },
+            "slots": {
+              "actions": [
+                {
+                  "id": "imp",
+                  "use": "Button",
+                  "props": {
+                    "label": "Import .knitpx",
+                    "variant": "outline",
+                    "hasIcon": true,
+                    "icon": "upload"
+                  }
+                },
+                {
+                  "id": "new",
+                  "use": "Button",
+                  "props": {
+                    "label": "New pattern",
+                    "hasIcon": true,
+                    "icon": "plus"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
