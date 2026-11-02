@@ -1,8 +1,10 @@
 import { Library } from "./screens/Library";
 import { Editor } from "./screens/Editor";
 import { Tracker } from "./screens/Tracker";
+import { Login } from "./screens/Login";
+import { useUser } from "./lib/auth";
 import { useRoute } from "./lib/router";
-import { usePatterns } from "./lib/store";
+import { usePatterns, usePatternsReady } from "./lib/store";
 import { useToasts } from "./lib/toast";
 import { useTheme } from "./lib/theme";
 import { Button } from "./components/ui";
@@ -11,11 +13,15 @@ import { AppHeader } from "./components/AppHeader";
 export function App() {
   useTheme();
   const route = useRoute();
+  const user = useUser();
   const patterns = usePatterns();
+  const ready = usePatternsReady();
   const pattern = route.name === "library" ? undefined : patterns.find((p) => p.id === route.id);
 
   let screen;
-  if (route.name === "library") screen = <Library />;
+  if (user === null) screen = <Login />;
+  else if (user === undefined || !ready) screen = <Loading />;
+  else if (route.name === "library") screen = <Library />;
   else if (!pattern) screen = <NotFound />;
   // Keyed so switching patterns resets editor history and tool state.
   else if (route.name === "edit") screen = <Editor key={pattern.id} pattern={pattern} />;
@@ -26,6 +32,14 @@ export function App() {
       {screen}
       <Toasts />
     </>
+  );
+}
+
+function Loading() {
+  return (
+    <div className="grid min-h-dvh place-items-center">
+      <p className="label-caps text-muted-foreground">Loading…</p>
+    </div>
   );
 }
 

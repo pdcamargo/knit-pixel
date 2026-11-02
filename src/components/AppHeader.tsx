@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
-import { Moon, Sun } from "lucide-react";
+import { LogOut, Moon, Sun } from "lucide-react";
+import { signOut, useUser } from "../lib/auth";
+import { flushPatterns } from "../lib/store";
 import { useTheme } from "../lib/theme";
 import { IconButton } from "./ui";
 
@@ -16,6 +18,7 @@ export function Logo() {
 
 export function AppHeader({ crumb, children }: { crumb?: ReactNode; children?: ReactNode }) {
   const [dark, setDark] = useTheme();
+  const user = useUser();
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b-2 bg-card px-3 md:h-[68px] md:gap-4 md:px-6">
       <div className="flex min-w-0 items-center gap-2 md:gap-4">
@@ -30,6 +33,17 @@ export function AppHeader({ crumb, children }: { crumb?: ReactNode; children?: R
       <div className="flex shrink-0 items-center gap-2 md:gap-3">
         {children}
         <IconButton icon={dark ? Sun : Moon} label={dark ? "Light mode" : "Dark mode"} bordered={false} onClick={() => setDark(!dark)} />
+        {user && (
+          <IconButton
+            icon={LogOut}
+            label={`Sign out (${user.email})`}
+            bordered={false}
+            onClick={() => {
+              flushPatterns();
+              signOut();
+            }}
+          />
+        )}
       </div>
     </header>
   );

@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Minus, Plus } from "lucide-react";
 
@@ -119,11 +119,17 @@ export function Stat({ value, label, big }: { value: ReactNode; label: string; b
   );
 }
 
-export function TextField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+export function TextField({
+  label,
+  value,
+  onChange,
+  ...rest
+}: { label: string; value: string; onChange: (v: string) => void } & Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange">) {
   return (
     <label className="flex flex-col gap-1">
       <span className="label-caps">{label}</span>
       <input
+        {...rest}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="h-10 border-2 bg-card px-3 text-[15px] outline-none focus:border-ring focus:hard-sm"
