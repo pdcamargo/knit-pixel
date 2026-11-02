@@ -23,8 +23,11 @@ const snap = (p: Pattern): Snapshot => ({ width: p.width, height: p.height, cell
 
 export function Editor({ pattern }: { pattern: Pattern }) {
   const [tool, setTool] = useState<Tool>("fill");
-  const [mirrorX, setMirrorX] = useState(false);
-  const [mirrorY, setMirrorY] = useState(false);
+  // Mirror axes in half-stitches from the left / top edge; null = off. Turning one on centres it.
+  const [mirrorX, setMirrorX] = useState<number | null>(null);
+  const [mirrorY, setMirrorY] = useState<number | null>(null);
+  const toggleMirrorX = () => setMirrorX((m) => (m === null ? live.current.width : null));
+  const toggleMirrorY = () => setMirrorY((m) => (m === null ? live.current.height : null));
   const [sheetOpen, setSheetOpen] = useState(false);
   // History lives in refs; `tick` re-renders so the undo/redo buttons update.
   const past = useRef<Snapshot[]>([]);
@@ -64,10 +67,10 @@ export function Editor({ pattern }: { pattern: Pattern }) {
     setTick((t) => t + 1);
   }, [update]);
 
-  /** (x, y) and its mirror images, given which mirrors are on. */
+  /** (x, y) and its mirror images, given which mirrors are on. Images off the chart are dropped. */
   const mirrored = (p: Pattern, x: number, y: number) => {
-    const xs = mirrorX ? [x, p.width - 1 - x] : [x];
-    const ys = mirrorY ? [y, p.height - 1 - y] : [y];
+    const xs = mirrorX === null ? [x] : [x, mirrorX - 1 - x].filter((v) => v >= 0 && v < p.width);
+    const ys = mirrorY === null ? [y] : [y, mirrorY - 1 - y].filter((v) => v >= 0 && v < p.height);
     return ys.flatMap((ty) => xs.map((tx) => ({ x: tx, y: ty })));
   };
 
@@ -97,6 +100,9 @@ export function Editor({ pattern }: { pattern: Pattern }) {
   const setSize = (width: number, height: number) => {
     if (width === pattern.width && height === pattern.height) return;
     checkpoint();
+    // Rows are added on top, so a top/bottom axis moves down with the stitches it was on.
+    if (mirrorY !== null) setMirrorY(Math.max(1, Math.min(2 * height - 1, mirrorY + 2 * (height - pattern.height))));
+    if (mirrorX !== null) setMirrorX(Math.min(2 * width - 1, mirrorX));
     update(resize(live.current, width, height));
   };
 
@@ -114,7 +120,7 @@ export function Editor({ pattern }: { pattern: Pattern }) {
       } else if (!mod) {
         const t = TOOLS.find((t) => t.key === e.key.toLowerCase());
         if (t) setTool(t.id);
-        if (e.key.toLowerCase() === "m") (e.shiftKey ? setMirrorY : setMirrorX)((m) => !m);
+        if (e.key.toLowerCase() === "m") (e.shiftKey ? toggleMirrorY : toggleMirrorX)();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -193,8 +199,8 @@ export function Editor({ pattern }: { pattern: Pattern }) {
           {TOOLS.map((t) => (
             <IconButton key={t.id} icon={t.icon} label={t.label} active={tool === t.id} onClick={() => setTool(t.id)} />
           ))}
-          <IconButton icon={TrianglesCenterlineDashedVertical} label="Mirror left and right (M)" active={mirrorX} onClick={() => setMirrorX(!mirrorX)} />
-          <IconButton icon={TrianglesCenterlineDashedHorizontal} label="Mirror top and bottom (⇧M)" active={mirrorY} onClick={() => setMirrorY(!mirrorY)} />
+          <IconButton icon={TrianglesCenterlineDashedVertical} label="Mirror left and right (M)" active={mirrorX !== null} onClick={toggleMirrorX} />
+          <IconButton icon={TrianglesCenterlineDashedHorizontal} label="Mirror top and bottom (⇧M)" active={mirrorY !== null} onClick={toggleMirrorY} />
           <hr className="h-8 border-l-2 md:my-1 md:h-auto md:border-t-2 md:border-l-0" />
           <IconButton icon={Undo2} label="Undo (⌘Z)" disabled={!past.current.length} onClick={undo} />
           <IconButton icon={Redo2} label="Redo (⇧⌘Z)" disabled={!future.current.length} onClick={redo} />
@@ -205,14 +211,16 @@ export function Editor({ pattern }: { pattern: Pattern }) {
           <ChartCanvas
             pattern={pattern}
             panOnDrag={tool === "pan"}
-            mirrorX={mirrorX}
-            mirrorY={mirrorY}
+            mirrorX={mirrorX ?? undefined}
+            mirrorY={mirrorY ?? undefined}
+            onMirrorMove={(axis, pos) => (axis === "x" ? setMirrorX : setMirrorY)(pos)}
             onCellDown={onCellDown}
             onCellDrag={tool === "bucket" ? undefined : paint}
           />
-          {(mirrorX || mirrorY) && (
-            <span className="label-caps pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 border bg-accent px-2 py-0.5 text-accent-foreground">
-              {mirrorX && mirrorY ? "Mirror 4-way" : mirrorX ? "Mirror left–right" : "Mirror top–bottom"}
+          {(mirrorX !== null || mirrorY !== null) && (
+            // Top-left, clear of the handle above a centred axis.
+            <span className="label-caps pointer-events-none absolute top-3 left-3 border bg-accent px-2 py-0.5 text-accent-foreground">
+              {mirrorX !== null && mirrorY !== null ? "Mirror 4-way" : mirrorX !== null ? "Mirror left–right" : "Mirror top–bottom"}
             </span>
           )}
         </div>

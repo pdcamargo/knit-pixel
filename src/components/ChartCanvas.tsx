@@ -19,6 +19,8 @@ const C = {
 };
 
 const GUTTER = 36;
+/** Mirror handle size, and how far past the chart edge it sits, in CSS px. */
+const HANDLE = 14;
 const MIN_CELL = 2;
 const MAX_CELL = 96;
 // How far a press may wander and still count as a tap, in CSS px.
@@ -34,9 +36,13 @@ type Props = {
   progress?: number;
   /** Drag pans instead of painting. A tap still reports onCellTap. */
   panOnDrag?: boolean;
-  /** Draw the mirror axes: left/right down the middle, top/bottom across it. */
-  mirrorX?: boolean;
-  mirrorY?: boolean;
+  /**
+   * Mirror axes in half-stitches from the left / top edge (so `width` is the middle), or
+   * undefined when off. Drawn with drag handles that report new positions via onMirrorMove.
+   */
+  mirrorX?: number;
+  mirrorY?: number;
+  onMirrorMove?: (axis: "x" | "y", pos: number) => void;
   onCellDown?: (x: number, y: number, button: number) => void;
   /** Called for every cell the pointer crosses while pressed, gaps filled in. */
   onCellDrag?: (x: number, y: number) => void;
@@ -50,7 +56,7 @@ const metrics = (cell: number) => {
   return { c, gap, step: c + gap };
 };
 
-export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, onCellDown, onCellDrag, onStrokeEnd, onCellTap }: Props) {
+export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, onMirrorMove, onCellDown, onCellDrag, onStrokeEnd, onCellTap }: Props) {
   const { width: w, height: h, cells } = pattern;
   const tracking = progress !== undefined;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -152,6 +158,23 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
     // Only when the stitch moves, not when the user pans.
   }, [progress]);
 
+  // Handles sit just outside the chart, pulled back on screen when it's zoomed past the edge.
+  const mirrorHandles = () => {
+    const out: { axis: "x" | "y"; x: number; y: number }[] = [];
+    const onScreen = (v: number, max: number) => Math.min(max - HANDLE, Math.max(HANDLE, v));
+    if (mirrorX !== undefined) {
+      const x = ox + gap / 2 + (mirrorX / 2) * step;
+      out.push({ axis: "x", x, y: onScreen(oy - HANDLE, size.height) }, { axis: "x", x, y: onScreen(oy + chartH + HANDLE, size.height) });
+    }
+    if (mirrorY !== undefined) {
+      const y = oy + gap / 2 + (mirrorY / 2) * step;
+      out.push({ axis: "y", x: onScreen(ox - HANDLE, size.width), y }, { axis: "y", x: onScreen(ox + chartW + HANDLE, size.width), y });
+    }
+    return out;
+  };
+  const handleAt = (p: { x: number; y: number }, slop: number) =>
+    onMirrorMove ? mirrorHandles().find((hd) => Math.abs(p.x - hd.x) <= HANDLE / 2 + slop && Math.abs(p.y - hd.y) <= HANDLE / 2 + slop) : undefined;
+
   // ---------- drawing ----------
   const cache = useRef<{ key: string; fill: CanvasPattern; chain: CanvasPattern } | null>(null);
   const fgCache = useRef<{ tick: number; color: string } | null>(null);
@@ -211,13 +234,22 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
       for (let r = 10; r < h; r += 10) ctx.fillRect(ox, oy + (h - r) * step, chartW, gap);
     }
 
-    // On a grid line for even sizes, through the middle stitch for odd ones. Runs past the frame
-    // so it stays visible over solid fills.
-    if (mirrorX || mirrorY) {
+    // Mirror axes run handle to handle, past the frame, so they stay visible over solid fills.
+    const handles = mirrorHandles();
+    if (handles.length) {
       const lw = Math.max(2, Math.min(4, Math.round(step / 6)));
       ctx.fillStyle = C.mirror;
-      if (mirrorX) ctx.fillRect(Math.round(ox + gap / 2 + (w / 2) * step - lw / 2), oy - 10, lw, chartH + 20);
-      if (mirrorY) ctx.fillRect(ox - 10, Math.round(oy + gap / 2 + (h / 2) * step - lw / 2), chartW + 20, lw);
+      for (let i = 0; i < handles.length; i += 2) {
+        const [a, b] = [handles[i], handles[i + 1]];
+        if (a.axis === "x") ctx.fillRect(Math.round(a.x - lw / 2), a.y, lw, b.y - a.y);
+        else ctx.fillRect(a.x, Math.round(a.y - lw / 2), b.x - a.x, lw);
+      }
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = C.frame;
+      for (const hd of handles) {
+        ctx.fillRect(Math.round(hd.x - HANDLE / 2), Math.round(hd.y - HANDLE / 2), HANDLE, HANDLE);
+        ctx.strokeRect(Math.round(hd.x - HANDLE / 2) + 1, Math.round(hd.y - HANDLE / 2) + 1, HANDLE - 2, HANDLE - 2);
+      }
     }
 
     if (tracking && currentRow < h) {
@@ -310,6 +342,7 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   type Gesture =
     | { kind: "paint"; last: Cell }
+    | { kind: "mirror"; axis: "x" | "y" }
     | { kind: "pan"; origin: { x: number; y: number }; last: { x: number; y: number }; panning: boolean; slop: number; start: Cell | null }
     | { kind: "pinch"; dist: number; mid: { x: number; y: number } };
   const gesture = useRef<Gesture | null>(null);
@@ -337,6 +370,12 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
       return;
     }
     if (pointers.current.size > 2) return;
+    const handle = handleAt(p, e.pointerType === "mouse" ? 2 : 8);
+    if (handle) {
+      hideHover();
+      gesture.current = { kind: "mirror", axis: handle.axis };
+      return;
+    }
     const c = cellAt(p.x, p.y);
     if (panOnDrag || spaceHeld || e.button === 1) {
       gesture.current = { kind: "pan", origin: p, last: p, panning: false, slop: e.pointerType === "mouse" ? TAP_SLOP.mouse : TAP_SLOP.touch, start: c };
@@ -348,7 +387,14 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
 
   const onPointerMove = (e: React.PointerEvent) => {
     const p = local(e);
-    if (e.pointerType === "mouse") moveHover(gesture.current?.kind === "pan" ? null : cellAt(p.x, p.y));
+    if (e.pointerType === "mouse") {
+      const handle = gesture.current ? undefined : handleAt(p, 2);
+      const g = gesture.current?.kind;
+      moveHover(handle || g === "pan" || g === "mirror" ? null : cellAt(p.x, p.y));
+      // Set directly: hovering shouldn't re-render. React only rewrites cursor when its value changes.
+      const axis = handle?.axis ?? (gesture.current?.kind === "mirror" ? gesture.current.axis : undefined);
+      canvasRef.current!.style.cursor = axis === "x" ? "ew-resize" : axis === "y" ? "ns-resize" : cursor;
+    }
     if (!pointers.current.has(e.pointerId)) return;
     pointers.current.set(e.pointerId, p);
     const g = gesture.current;
@@ -367,6 +413,11 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
       }
       panBy(p.x - g.last.x, p.y - g.last.y);
       g.last = p;
+    } else if (g.kind === "mirror") {
+      // Snap to half-stitches: on a grid line or through the middle of a stitch.
+      const [pos, origin, n] = g.axis === "x" ? [p.x, ox, w] : [p.y, oy, h];
+      const half = Math.max(1, Math.min(2 * n - 1, Math.round(((pos - origin - gap / 2) / step) * 2)));
+      if (half !== (g.axis === "x" ? mirrorX : mirrorY)) onMirrorMove?.(g.axis, half);
     } else if (g.kind === "paint" && onCellDrag) {
       const c = cellAt(p.x, p.y);
       if (!c || (c.x === g.last.x && c.y === g.last.y)) return;
