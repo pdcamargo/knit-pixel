@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Contrast, Download, Eraser, FlipHorizontal2, Hand, PaintBucket, Pencil, Play, Redo2, SlidersHorizontal, Trash2, Undo2, X } from "lucide-react";
+import { Contrast, Download, Eraser, Hand, PaintBucket, Pencil, Play, Redo2, SlidersHorizontal, Trash2, TrianglesCenterlineDashedHorizontal, TrianglesCenterlineDashedVertical, Undo2, X } from "lucide-react";
 import { AppHeader } from "../components/AppHeader";
 import { ChartCanvas } from "../components/ChartCanvas";
 import { Thumbnail } from "../components/Thumbnail";
@@ -23,7 +23,8 @@ const snap = (p: Pattern): Snapshot => ({ width: p.width, height: p.height, cell
 
 export function Editor({ pattern }: { pattern: Pattern }) {
   const [tool, setTool] = useState<Tool>("fill");
-  const [mirror, setMirror] = useState(false);
+  const [mirrorX, setMirrorX] = useState(false);
+  const [mirrorY, setMirrorY] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   // History lives in refs; `tick` re-renders so the undo/redo buttons update.
   const past = useRef<Snapshot[]>([]);
@@ -63,12 +64,19 @@ export function Editor({ pattern }: { pattern: Pattern }) {
     setTick((t) => t + 1);
   }, [update]);
 
+  /** (x, y) and its mirror images, given which mirrors are on. */
+  const mirrored = (p: Pattern, x: number, y: number) => {
+    const xs = mirrorX ? [x, p.width - 1 - x] : [x];
+    const ys = mirrorY ? [y, p.height - 1 - y] : [y];
+    return ys.flatMap((ty) => xs.map((tx) => ({ x: tx, y: ty })));
+  };
+
   const paint = (x: number, y: number) => {
     const p = live.current;
-    const targets = mirror ? [x, p.width - 1 - x] : [x];
-    if (targets.every((tx) => p.cells[y * p.width + tx] === strokeValue.current)) return;
+    const targets = mirrored(p, x, y).map((c) => c.y * p.width + c.x);
+    if (targets.every((i) => p.cells[i] === strokeValue.current)) return;
     const cells = p.cells.slice();
-    for (const tx of targets) cells[y * p.width + tx] = strokeValue.current;
+    for (const i of targets) cells[i] = strokeValue.current;
     update({ cells });
   };
 
@@ -77,8 +85,7 @@ export function Editor({ pattern }: { pattern: Pattern }) {
     checkpoint();
     if (tool === "bucket") {
       const value = p.cells[y * p.width + x] ? 0 : 1;
-      let cells = floodFill(p.cells, p.width, p.height, x, y, value);
-      if (mirror) cells = floodFill(cells, p.width, p.height, p.width - 1 - x, y, value);
+      const cells = mirrored(p, x, y).reduce((acc, c) => floodFill(acc, p.width, p.height, c.x, c.y, value), p.cells);
       update({ cells });
       return;
     }
@@ -107,7 +114,7 @@ export function Editor({ pattern }: { pattern: Pattern }) {
       } else if (!mod) {
         const t = TOOLS.find((t) => t.key === e.key.toLowerCase());
         if (t) setTool(t.id);
-        if (e.key.toLowerCase() === "m") setMirror((m) => !m);
+        if (e.key.toLowerCase() === "m") (e.shiftKey ? setMirrorY : setMirrorX)((m) => !m);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -186,7 +193,8 @@ export function Editor({ pattern }: { pattern: Pattern }) {
           {TOOLS.map((t) => (
             <IconButton key={t.id} icon={t.icon} label={t.label} active={tool === t.id} onClick={() => setTool(t.id)} />
           ))}
-          <IconButton icon={FlipHorizontal2} label="Mirror left and right (M)" active={mirror} onClick={() => setMirror(!mirror)} />
+          <IconButton icon={TrianglesCenterlineDashedVertical} label="Mirror left and right (M)" active={mirrorX} onClick={() => setMirrorX(!mirrorX)} />
+          <IconButton icon={TrianglesCenterlineDashedHorizontal} label="Mirror top and bottom (⇧M)" active={mirrorY} onClick={() => setMirrorY(!mirrorY)} />
           <hr className="h-8 border-l-2 md:my-1 md:h-auto md:border-t-2 md:border-l-0" />
           <IconButton icon={Undo2} label="Undo (⌘Z)" disabled={!past.current.length} onClick={undo} />
           <IconButton icon={Redo2} label="Redo (⇧⌘Z)" disabled={!future.current.length} onClick={redo} />
@@ -197,13 +205,14 @@ export function Editor({ pattern }: { pattern: Pattern }) {
           <ChartCanvas
             pattern={pattern}
             panOnDrag={tool === "pan"}
-            mirrorAxis={mirror}
+            mirrorX={mirrorX}
+            mirrorY={mirrorY}
             onCellDown={onCellDown}
             onCellDrag={tool === "bucket" ? undefined : paint}
           />
-          {mirror && (
+          {(mirrorX || mirrorY) && (
             <span className="label-caps pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 border bg-accent px-2 py-0.5 text-accent-foreground">
-              Mirror on
+              {mirrorX && mirrorY ? "Mirror 4-way" : mirrorX ? "Mirror left–right" : "Mirror top–bottom"}
             </span>
           )}
         </div>

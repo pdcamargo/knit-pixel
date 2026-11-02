@@ -34,8 +34,9 @@ type Props = {
   progress?: number;
   /** Drag pans instead of painting. A tap still reports onCellTap. */
   panOnDrag?: boolean;
-  /** Draw the left/right mirror axis down the middle. */
-  mirrorAxis?: boolean;
+  /** Draw the mirror axes: left/right down the middle, top/bottom across it. */
+  mirrorX?: boolean;
+  mirrorY?: boolean;
   onCellDown?: (x: number, y: number, button: number) => void;
   /** Called for every cell the pointer crosses while pressed, gaps filled in. */
   onCellDrag?: (x: number, y: number) => void;
@@ -49,7 +50,7 @@ const metrics = (cell: number) => {
   return { c, gap, step: c + gap };
 };
 
-export function ChartCanvas({ pattern, progress, panOnDrag, mirrorAxis, onCellDown, onCellDrag, onStrokeEnd, onCellTap }: Props) {
+export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, onCellDown, onCellDrag, onStrokeEnd, onCellTap }: Props) {
   const { width: w, height: h, cells } = pattern;
   const tracking = progress !== undefined;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -210,13 +211,13 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorAxis, onCellDo
       for (let r = 10; r < h; r += 10) ctx.fillRect(ox, oy + (h - r) * step, chartW, gap);
     }
 
-    // On a grid line for even widths, through the middle column for odd ones. Runs past the frame
+    // On a grid line for even sizes, through the middle stitch for odd ones. Runs past the frame
     // so it stays visible over solid fills.
-    if (mirrorAxis) {
-      const mx = ox + gap / 2 + (w / 2) * step;
+    if (mirrorX || mirrorY) {
       const lw = Math.max(2, Math.min(4, Math.round(step / 6)));
       ctx.fillStyle = C.mirror;
-      ctx.fillRect(Math.round(mx - lw / 2), oy - 10, lw, chartH + 20);
+      if (mirrorX) ctx.fillRect(Math.round(ox + gap / 2 + (w / 2) * step - lw / 2), oy - 10, lw, chartH + 20);
+      if (mirrorY) ctx.fillRect(ox - 10, Math.round(oy + gap / 2 + (h / 2) * step - lw / 2), chartW + 20, lw);
     }
 
     if (tracking && currentRow < h) {
