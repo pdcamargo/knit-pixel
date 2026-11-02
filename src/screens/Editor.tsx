@@ -197,6 +197,7 @@ export function Editor({ pattern }: { pattern: Pattern }) {
           <ChartCanvas
             pattern={pattern}
             panOnDrag={tool === "pan"}
+            mirrorAxis={mirror}
             onCellDown={onCellDown}
             onCellDrag={tool === "bucket" ? undefined : paint}
           />

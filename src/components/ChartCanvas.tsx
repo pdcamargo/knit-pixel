@@ -14,6 +14,8 @@ const C = {
   doneChain: { base: "#ffffff", hatch: "#bdbdbd" },
   current: "#ffbf00",
   row: "#db0000",
+  // Blue isn't in the palette, so it can't be mistaken for a stitch, the current row or the cursor.
+  mirror: "#2563eb",
 };
 
 const GUTTER = 36;
@@ -32,6 +34,8 @@ type Props = {
   progress?: number;
   /** Drag pans instead of painting. A tap still reports onCellTap. */
   panOnDrag?: boolean;
+  /** Draw the left/right mirror axis down the middle. */
+  mirrorAxis?: boolean;
   onCellDown?: (x: number, y: number, button: number) => void;
   /** Called for every cell the pointer crosses while pressed, gaps filled in. */
   onCellDrag?: (x: number, y: number) => void;
@@ -45,7 +49,7 @@ const metrics = (cell: number) => {
   return { c, gap, step: c + gap };
 };
 
-export function ChartCanvas({ pattern, progress, panOnDrag, onCellDown, onCellDrag, onStrokeEnd, onCellTap }: Props) {
+export function ChartCanvas({ pattern, progress, panOnDrag, mirrorAxis, onCellDown, onCellDrag, onStrokeEnd, onCellTap }: Props) {
   const { width: w, height: h, cells } = pattern;
   const tracking = progress !== undefined;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -204,6 +208,15 @@ export function ChartCanvas({ pattern, progress, panOnDrag, onCellDown, onCellDr
       ctx.fillStyle = C.gridMajor;
       for (let x = 10; x < w; x += 10) ctx.fillRect(ox + x * step, oy, gap, chartH);
       for (let r = 10; r < h; r += 10) ctx.fillRect(ox, oy + (h - r) * step, chartW, gap);
+    }
+
+    // On a grid line for even widths, through the middle column for odd ones. Runs past the frame
+    // so it stays visible over solid fills.
+    if (mirrorAxis) {
+      const mx = ox + gap / 2 + (w / 2) * step;
+      const lw = Math.max(2, Math.min(4, Math.round(step / 6)));
+      ctx.fillStyle = C.mirror;
+      ctx.fillRect(Math.round(mx - lw / 2), oy - 10, lw, chartH + 20);
     }
 
     if (tracking && currentRow < h) {
