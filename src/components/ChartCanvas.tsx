@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Maximize, ZoomIn, ZoomOut } from "lucide-react";
-import { stitchToCell, totalStitches, type Pattern } from "../lib/pattern";
+import { stitchToCell, totalStitches, type Pattern, type Rect } from "../lib/pattern";
 import { IconButton } from "./ui";
 
 // Chart colours are paper and ink in both themes (see the design system brief).
@@ -43,6 +43,13 @@ type Props = {
   mirrorX?: number;
   mirrorY?: number;
   onMirrorMove?: (axis: "x" | "y", pos: number) => void;
+  /** Drawn as a marching outline, in cells. */
+  selection?: Rect;
+  /**
+   * Takes over from painting: a primary-button drag reports the cell under the pointer, which
+   * may lie off the chart, so a drag can carry stitches past the edge.
+   */
+  drag?: { cursor: string; start: (c: Cell) => void; move: (c: Cell) => void; end: () => void };
   onCellDown?: (x: number, y: number, button: number) => void;
   /** Called for every cell the pointer crosses while pressed, gaps filled in. */
   onCellDrag?: (x: number, y: number) => void;
@@ -56,7 +63,7 @@ const metrics = (cell: number) => {
   return { c, gap, step: c + gap };
 };
 
-export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, onMirrorMove, onCellDown, onCellDrag, onStrokeEnd, onCellTap }: Props) {
+export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, onMirrorMove, selection, drag, onCellDown, onCellDrag, onStrokeEnd, onCellTap }: Props) {
   const { width: w, height: h, cells } = pattern;
   const tracking = progress !== undefined;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -234,6 +241,20 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
       for (let r = 10; r < h; r += 10) ctx.fillRect(ox, oy + (h - r) * step, chartW, gap);
     }
 
+    if (selection) {
+      // White under black dashes reads on fill and chain alike.
+      const sx = ox + gap / 2 + selection.x * step;
+      const sy = oy + gap / 2 + selection.y * step;
+      const args = [sx + 1, sy + 1, selection.w * step - 2, selection.h * step - 2] as const;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = C.chain;
+      ctx.strokeRect(...args);
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = C.fill;
+      ctx.strokeRect(...args);
+      ctx.setLineDash([]);
+    }
+
     // Mirror axes run handle to handle, past the frame, so they stay visible over solid fills.
     const handles = mirrorHandles();
     if (handles.length) {
@@ -315,7 +336,7 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
     [],
   );
 
-  const showHover = Boolean(onCellDown) && !panOnDrag;
+  const showHover = Boolean(onCellDown) && !panOnDrag && !drag;
   const moveHover = (c: Cell | null) => {
     const el = hoverRef.current;
     if (!el) return;
@@ -329,9 +350,9 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
   };
 
   // ---------- input ----------
+  const anyCellAt = (px: number, py: number): Cell => ({ x: Math.floor((px - ox - gap / 2) / step), y: Math.floor((py - oy - gap / 2) / step) });
   const cellAt = (px: number, py: number): Cell | null => {
-    const x = Math.floor((px - ox - gap / 2) / step);
-    const y = Math.floor((py - oy - gap / 2) / step);
+    const { x, y } = anyCellAt(px, py);
     return x >= 0 && y >= 0 && x < w && y < h ? { x, y } : null;
   };
   const local = (e: { clientX: number; clientY: number }) => {
@@ -342,6 +363,7 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   type Gesture =
     | { kind: "paint"; last: Cell }
+    | { kind: "drag"; last: Cell }
     | { kind: "mirror"; axis: "x" | "y" }
     | { kind: "pan"; origin: { x: number; y: number }; last: { x: number; y: number }; panning: boolean; slop: number; start: Cell | null }
     | { kind: "pinch"; dist: number; mid: { x: number; y: number } };
@@ -352,8 +374,9 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
     return { dist: Math.hypot(a.x - b.x, a.y - b.y), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
   };
 
-  const endPaint = () => {
+  const endStroke = () => {
     if (gesture.current?.kind === "paint") onStrokeEnd?.();
+    if (gesture.current?.kind === "drag") drag?.end();
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -365,7 +388,7 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
     }
     pointers.current.set(e.pointerId, p);
     if (pointers.current.size === 2) {
-      endPaint();
+      endStroke();
       gesture.current = { kind: "pinch", ...twoFinger() };
       return;
     }
@@ -379,6 +402,11 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
     const c = cellAt(p.x, p.y);
     if (panOnDrag || spaceHeld || e.button === 1) {
       gesture.current = { kind: "pan", origin: p, last: p, panning: false, slop: e.pointerType === "mouse" ? TAP_SLOP.mouse : TAP_SLOP.touch, start: c };
+    } else if (drag) {
+      if (e.button !== 0) return;
+      const any = anyCellAt(p.x, p.y);
+      gesture.current = { kind: "drag", last: any };
+      drag.start(any);
     } else if (onCellDown && c) {
       gesture.current = { kind: "paint", last: c };
       onCellDown(c.x, c.y, e.button);
@@ -418,6 +446,11 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
       const [pos, origin, n] = g.axis === "x" ? [p.x, ox, w] : [p.y, oy, h];
       const half = Math.max(1, Math.min(2 * n - 1, Math.round(((pos - origin - gap / 2) / step) * 2)));
       if (half !== (g.axis === "x" ? mirrorX : mirrorY)) onMirrorMove?.(g.axis, half);
+    } else if (g.kind === "drag") {
+      const c = anyCellAt(p.x, p.y);
+      if (c.x === g.last.x && c.y === g.last.y) return;
+      g.last = c;
+      drag?.move(c);
     } else if (g.kind === "paint" && onCellDrag) {
       const c = cellAt(p.x, p.y);
       if (!c || (c.x === g.last.x && c.y === g.last.y)) return;
@@ -430,7 +463,7 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
     pointers.current.delete(e.pointerId);
     const g = gesture.current;
     if (g?.kind === "pan" && !g.panning && g.start && onCellTap) onCellTap(g.start.x, g.start.y);
-    endPaint();
+    endStroke();
     // After a pinch, the finger still down does nothing until it lifts too.
     if (pointers.current.size === 0 || g?.kind !== "pinch") gesture.current = null;
   };
@@ -471,7 +504,7 @@ export function ChartCanvas({ pattern, progress, panOnDrag, mirrorX, mirrorY, on
     };
   }, [zoomAt, size.width, size.height, panOnDrag]);
 
-  const cursor = panOnDrag || spaceHeld ? (gesture.current?.kind === "pan" ? "grabbing" : "grab") : onCellDown ? "crosshair" : "default";
+  const cursor = panOnDrag || spaceHeld ? (gesture.current?.kind === "pan" ? "grabbing" : "grab") : drag ? drag.cursor : onCellDown ? "crosshair" : "default";
 
   return (
     <div ref={wrapRef} className="relative min-h-0 flex-1 overflow-hidden text-foreground">

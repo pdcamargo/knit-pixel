@@ -1,21 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Contrast, Download, Eraser, Hand, PaintBucket, Pencil, Play, Redo2, SlidersHorizontal, Trash2, TrianglesCenterlineDashedHorizontal, TrianglesCenterlineDashedVertical, Undo2, X } from "lucide-react";
+import { Contrast, Download, Eraser, Hand, Move, PaintBucket, Pencil, Play, Redo2, SlidersHorizontal, SquareDashed, Trash2, TrianglesCenterlineDashedHorizontal, TrianglesCenterlineDashedVertical, Undo2, X } from "lucide-react";
 import { AppHeader } from "../components/AppHeader";
 import { ChartCanvas } from "../components/ChartCanvas";
 import { Thumbnail } from "../components/Thumbnail";
 import { Button, IconButton, NumberStepper, Panel, TextField } from "../components/ui";
 import { downloadPattern } from "../lib/files";
-import { floodFill, MAX_SIZE, MIN_SIZE, resize, type Pattern } from "../lib/pattern";
+import { clipRect, floodFill, MAX_SIZE, MIN_SIZE, moveCells, resize, type Pattern, type Rect } from "../lib/pattern";
 import { navigate } from "../lib/router";
 import { savePattern } from "../lib/store";
 
-type Tool = "fill" | "chain" | "bucket" | "pan";
+type Tool = "fill" | "chain" | "bucket" | "select" | "move" | "pan";
+type Cell = { x: number; y: number };
+/** Which side of the chart stays put on resize: 0 = left / top, 0.5 = middle, 1 = right / bottom. */
+type Anchor = { ax: number; ay: number };
 type Snapshot = Pick<Pattern, "width" | "height" | "cells" | "progress">;
 
 const TOOLS = [
   { id: "fill", icon: Pencil, label: "Fill — full square (P)", key: "p" },
   { id: "chain", icon: Eraser, label: "Chain — open square (E)", key: "e" },
   { id: "bucket", icon: PaintBucket, label: "Bucket — swap a connected area (B)", key: "b" },
+  { id: "select", icon: SquareDashed, label: "Select — drag a box, drag inside it to move (S)", key: "s" },
+  { id: "move", icon: Move, label: "Move — drag the selection, or the whole chart (V)", key: "v" },
   { id: "pan", icon: Hand, label: "Hand — drag to move around (H, or hold Space)", key: "h" },
 ] as const;
 
@@ -29,6 +34,10 @@ export function Editor({ pattern }: { pattern: Pattern }) {
   const toggleMirrorX = () => setMirrorX((m) => (m === null ? live.current.width : null));
   const toggleMirrorY = () => setMirrorY((m) => (m === null ? live.current.height : null));
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [selection, setSelection] = useState<Rect | null>(null);
+  // Undo can shrink the chart under a selection, so only the part still on it counts.
+  const sel = selection && clipRect(selection, pattern.width, pattern.height);
+  const [anchor, setAnchor] = useState<Anchor>({ ax: 0, ay: 1 });
   // History lives in refs; `tick` re-renders so the undo/redo buttons update.
   const past = useRef<Snapshot[]>([]);
   const future = useRef<Snapshot[]>([]);
@@ -55,6 +64,7 @@ export function Editor({ pattern }: { pattern: Pattern }) {
     past.current = past.current.slice(0, -1);
     future.current = [snap(live.current), ...future.current];
     update(prev);
+    setSelection(null);
     setTick((t) => t + 1);
   }, [update]);
 
@@ -64,6 +74,7 @@ export function Editor({ pattern }: { pattern: Pattern }) {
     future.current = future.current.slice(1);
     past.current = [...past.current, snap(live.current)];
     update(next);
+    setSelection(null);
     setTick((t) => t + 1);
   }, [update]);
 
@@ -100,12 +111,72 @@ export function Editor({ pattern }: { pattern: Pattern }) {
   const setSize = (width: number, height: number) => {
     if (width === pattern.width && height === pattern.height) return;
     checkpoint();
-    // Rows are added on top, so a top/bottom axis moves down with the stitches it was on.
-    if (mirrorY !== null) setMirrorY(Math.max(1, Math.min(2 * height - 1, mirrorY + 2 * (height - pattern.height))));
-    if (mirrorX !== null) setMirrorX(Math.min(2 * width - 1, mirrorX));
-    update(resize(live.current, width, height));
+    const dx = Math.floor((width - pattern.width) * anchor.ax);
+    const dy = Math.floor((height - pattern.height) * anchor.ay);
+    // Mirror axes move with the stitches they were on.
+    if (mirrorX !== null) setMirrorX(Math.max(1, Math.min(2 * width - 1, mirrorX + 2 * dx)));
+    if (mirrorY !== null) setMirrorY(Math.max(1, Math.min(2 * height - 1, mirrorY + 2 * dy)));
+    setSelection(null);
+    update(resize(live.current, width, height, dx, dy));
   };
 
+  /** Shift the selection, or the whole chart when nothing is selected. */
+  const nudge = (dx: number, dy: number) => {
+    const p = live.current;
+    const rect = sel ?? { x: 0, y: 0, w: p.width, h: p.height };
+    checkpoint();
+    update({ cells: moveCells(p.cells, p.width, p.height, rect, dx, dy) });
+    if (sel) setSelection(clipRect({ ...sel, x: sel.x + dx, y: sel.y + dy }, p.width, p.height));
+  };
+
+  type Drag = { kind: "marquee"; from: Cell } | { kind: "move"; from: Cell; base: number[]; rect: Rect; selected: boolean; moved: boolean };
+  const dragging = useRef<Drag | null>(null);
+  const onChart = (c: Cell) => ({
+    x: Math.max(0, Math.min(live.current.width - 1, c.x)),
+    y: Math.max(0, Math.min(live.current.height - 1, c.y)),
+  });
+  const dragTool =
+    tool === "select" || tool === "move"
+      ? {
+          cursor: tool === "move" ? "move" : "crosshair",
+          start: (c: Cell) => {
+            const p = live.current;
+            const inside = sel && c.x >= sel.x && c.x < sel.x + sel.w && c.y >= sel.y && c.y < sel.y + sel.h;
+            if (tool === "move" || inside) {
+              const rect = sel ?? { x: 0, y: 0, w: p.width, h: p.height };
+              dragging.current = { kind: "move", from: c, base: p.cells, rect, selected: Boolean(sel), moved: false };
+            } else {
+              // A click without a drag just clears the selection.
+              dragging.current = { kind: "marquee", from: onChart(c) };
+              setSelection(null);
+            }
+          },
+          move: (c: Cell) => {
+            const d = dragging.current;
+            if (!d) return;
+            if (d.kind === "marquee") {
+              const b = onChart(c);
+              setSelection({ x: Math.min(d.from.x, b.x), y: Math.min(d.from.y, b.y), w: Math.abs(d.from.x - b.x) + 1, h: Math.abs(d.from.y - b.y) + 1 });
+              return;
+            }
+            const p = live.current;
+            const dx = c.x - d.from.x;
+            const dy = c.y - d.from.y;
+            if (!d.moved) {
+              checkpoint();
+              d.moved = true;
+            }
+            // Always from where the drag started, so stitches dragged off the edge and back survive.
+            update({ cells: moveCells(d.base, p.width, p.height, d.rect, dx, dy) });
+            if (d.selected) setSelection(clipRect({ ...d.rect, x: d.rect.x + dx, y: d.rect.y + dy }, p.width, p.height));
+          },
+          end: () => {
+            dragging.current = null;
+          },
+        }
+      : undefined;
+
+  // Re-bound each render: nudging and deleting read the current tool and selection.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return;
@@ -117,6 +188,23 @@ export function Editor({ pattern }: { pattern: Pattern }) {
       } else if (mod && e.key.toLowerCase() === "y") {
         e.preventDefault();
         redo();
+      } else if (mod && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        setSelection({ x: 0, y: 0, w: live.current.width, h: live.current.height });
+      } else if (e.key === "Escape") {
+        setSelection(null);
+      } else if ((e.key === "Delete" || e.key === "Backspace") && sel) {
+        e.preventDefault();
+        const p = live.current;
+        checkpoint();
+        const cells = p.cells.slice();
+        for (let y = sel.y; y < sel.y + sel.h; y++) cells.fill(0, y * p.width + sel.x, y * p.width + sel.x + sel.w);
+        update({ cells });
+      } else if (e.key.startsWith("Arrow") && (tool === "select" || tool === "move")) {
+        e.preventDefault();
+        const n = e.shiftKey ? 10 : 1;
+        const [dx, dy] = { ArrowLeft: [-n, 0], ArrowRight: [n, 0], ArrowUp: [0, -n], ArrowDown: [0, n] }[e.key] ?? [0, 0];
+        nudge(dx, dy);
       } else if (!mod) {
         const t = TOOLS.find((t) => t.key === e.key.toLowerCase());
         if (t) setTool(t.id);
@@ -125,7 +213,7 @@ export function Editor({ pattern }: { pattern: Pattern }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo]);
+  });
 
   const fills = pattern.cells.reduce((n, c) => n + c, 0);
 
@@ -133,13 +221,16 @@ export function Editor({ pattern }: { pattern: Pattern }) {
     <>
       <TextField label="Pattern name" value={pattern.name} onChange={(name) => update({ name })} />
 
-      <Panel title="Canvas size">
-        <div className="grid grid-cols-2 gap-3">
-          <NumberStepper label="Width" value={pattern.width} min={MIN_SIZE} max={MAX_SIZE} onChange={(w) => setSize(w, pattern.height)} />
-          <NumberStepper label="Height" value={pattern.height} min={MIN_SIZE} max={MAX_SIZE} onChange={(h) => setSize(pattern.width, h)} />
-        </div>
-        <p className="text-[12px] text-muted-foreground">Rows are added on top, stitches on the right. The bottom-left corner stays put.</p>
-      </Panel>
+      {/* Remounts on resize (and undo) so the draft starts from the chart's real size. */}
+      <CanvasSize
+        key={`${pattern.width}x${pattern.height}`}
+        width={pattern.width}
+        height={pattern.height}
+        hasProgress={pattern.progress > 0}
+        anchor={anchor}
+        onAnchor={setAnchor}
+        onApply={setSize}
+      />
 
       <Panel title="Stitches">
         <Legend fill label="Fill — full square" count={fills} />
@@ -214,6 +305,8 @@ export function Editor({ pattern }: { pattern: Pattern }) {
             mirrorX={mirrorX ?? undefined}
             mirrorY={mirrorY ?? undefined}
             onMirrorMove={(axis, pos) => (axis === "x" ? setMirrorX : setMirrorY)(pos)}
+            selection={sel ?? undefined}
+            drag={dragTool}
             onCellDown={onCellDown}
             onCellDrag={tool === "bucket" ? undefined : paint}
           />
@@ -245,6 +338,64 @@ export function Editor({ pattern }: { pattern: Pattern }) {
         </div>
       )}
     </div>
+  );
+}
+
+const ANCHORS = [0, 0.5, 1].flatMap((ay) => [0, 0.5, 1].map((ax) => ({ ax, ay })));
+const SIDE = { x: ["on the right", "on both sides", "on the left"], y: ["at the bottom", "top and bottom", "on top"] };
+
+function CanvasSize({
+  width,
+  height,
+  hasProgress,
+  anchor,
+  onAnchor,
+  onApply,
+}: {
+  width: number;
+  height: number;
+  hasProgress: boolean;
+  anchor: Anchor;
+  onAnchor: (a: Anchor) => void;
+  onApply: (width: number, height: number) => void;
+}) {
+  const [w, setW] = useState(width);
+  const [h, setH] = useState(height);
+  const changed = w !== width || h !== height;
+  // Same offsets as setSize: progress survives only if the bottom-left corner stays put.
+  const losesProgress = hasProgress && (Math.floor((w - width) * anchor.ax) !== 0 || Math.floor((h - height) * anchor.ay) !== h - height);
+  return (
+    <Panel title="Canvas size">
+      <div className="grid grid-cols-2 gap-3">
+        <NumberStepper label="Width" value={w} min={MIN_SIZE} max={MAX_SIZE} onChange={setW} />
+        <NumberStepper label="Height" value={h} min={MIN_SIZE} max={MAX_SIZE} onChange={setH} />
+      </div>
+      <div className="flex items-center gap-3">
+        <div role="radiogroup" aria-label="Anchor" className="grid shrink-0 grid-cols-3 gap-px border-2 bg-border">
+          {ANCHORS.map((a) => {
+            const on = a.ax === anchor.ax && a.ay === anchor.ay;
+            return (
+              <button
+                key={`${a.ax},${a.ay}`}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                aria-label={`Keep the art ${a.ay === 0 ? "top" : a.ay === 1 ? "bottom" : "middle"} ${a.ax === 0 ? "left" : a.ax === 1 ? "right" : "centre"}`}
+                onClick={() => onAnchor(a)}
+                className={"size-6 focus-visible:outline-2 focus-visible:outline-ring " + (on ? "bg-foreground" : "bg-card hover:bg-accent")}
+              />
+            );
+          })}
+        </div>
+        <p className="text-[12px] text-muted-foreground">
+          The art stays at the black square. Rows change {SIDE.y[anchor.ay * 2]}, stitches {SIDE.x[anchor.ax * 2]}.
+        </p>
+      </div>
+      {losesProgress && <p className="text-[12px] text-muted-foreground">The bottom-left corner moves, so this resets your crochet progress.</p>}
+      <Button size="sm" variant="outline" disabled={!changed} onClick={() => onApply(w, h)}>
+        {changed ? `Resize to ${w} × ${h}` : "Resize"}
+      </Button>
+    </Panel>
   );
 }
 

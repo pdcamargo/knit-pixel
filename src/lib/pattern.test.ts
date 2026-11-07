@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cellToStitch, fromBitmap, fromKnitpx, KnitpxError, resize, rowRuns, stitchToCell, toKnitpx } from "./pattern";
+import { cellToStitch, fromBitmap, fromKnitpx, KnitpxError, moveCells, resize, rowRuns, stitchToCell, toKnitpx } from "./pattern";
 
 describe("serpentine order", () => {
   it("starts bottom-left, goes right, then back left one row up", () => {
@@ -79,5 +79,36 @@ describe("resize", () => {
   it("keeps finished rows finished", () => {
     const p = { ...fromBitmap("t", ["....", "....", "...."]), progress: 9 }; // 2 rows + 1
     expect(resize(p, 6, 3).progress).toBe(13);
+  });
+
+  it("can grow from any side", () => {
+    const p = fromBitmap("t", ["X.", ".X"]);
+    // Old top-left lands at (1, 0): one stitch added on the left, one row at the bottom.
+    expect(resize(p, 3, 3, 1, 0).cells).toEqual([0, 1, 0, 0, 0, 1, 0, 0, 0]);
+  });
+
+  it("crops when shrinking past the art", () => {
+    const p = fromBitmap("t", ["XX.", ".X."]);
+    expect(resize(p, 2, 2, -1, 0).cells).toEqual([1, 0, 1, 0]);
+  });
+
+  it("drops progress when the bottom-left corner moves", () => {
+    const p = { ...fromBitmap("t", ["....", "...."]), progress: 5 };
+    expect(resize(p, 6, 2, 2, 0).progress).toBe(0);
+    expect(resize(p, 4, 3, 0, 0).progress).toBe(0);
+    expect(resize(p, 6, 3).progress).toBe(7);
+  });
+});
+
+describe("moveCells", () => {
+  it("shifts the whole chart, dropping what falls off", () => {
+    const p = fromBitmap("t", ["X..", ".X.", "..X"]);
+    expect(moveCells(p.cells, 3, 3, { x: 0, y: 0, w: 3, h: 3 }, 1, 0)).toEqual([0, 1, 0, 0, 0, 1, 0, 0, 0]);
+  });
+
+  it("leaves chain behind and covers what it lands on", () => {
+    const p = fromBitmap("t", ["XX.X"]);
+    expect(moveCells(p.cells, 4, 1, { x: 0, y: 0, w: 2, h: 1 }, 1, 0)).toEqual([0, 1, 1, 1]);
+    expect(moveCells(p.cells, 4, 1, { x: 3, y: 0, w: 1, h: 1 }, -1, 0)).toEqual([1, 1, 1, 0]);
   });
 });

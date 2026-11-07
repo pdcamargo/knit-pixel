@@ -35,6 +35,10 @@ Cross-hatched in the app, over a dark base for fill and white for chain, so you 
 
 Every chart has zoom out / fit / zoom in at the bottom right. Fit stays active until the user zooms or pans. Pinch or ⌘-scroll zooms at the cursor, plain scroll or two fingers pan. In the tracker a drag pans and a tap jumps to that stitch. In the editor a drag paints, and the hand tool or a held Space pans. When zoomed in, the tracker follows the current stitch.
 
+## Select, move and canvas size
+
+Select (S) drags a dashed box; Move (V) drags the selection, or the whole chart when nothing is selected. Arrows nudge, Shift+arrows by 10, Delete clears the box to chain. Canvas size is a draft with an anchor: the art stays at the black square, rows and stitches change on the other sides, and nothing happens until Resize.
+
 ## Files
 
 `.knitpx` is JSON: `rows` top-first, `#` = fill, `.` = chain. A plain export is just the pattern, for sharing. **Save progress** adds `progress` (finished stitches in working order), and **Load progress** only accepts a file for the same chart. Re-importing a pattern you already have asks whether to replace it or keep both.

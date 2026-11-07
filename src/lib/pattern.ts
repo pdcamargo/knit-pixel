@@ -75,23 +75,56 @@ export function rowRuns(p: Pattern, row: number): Run[] {
 }
 
 /**
- * Resize, keeping the bottom-left corner fixed: the chart is worked from there,
- * so growing adds rows on top and stitches on the right.
+ * Resize, placing the old chart's top-left at (dx, dy) in the new one. The default keeps the
+ * bottom-left corner fixed: the chart is worked from there, so growing adds rows on top and
+ * stitches on the right.
  */
-export function resize(p: Pattern, width: number, height: number): Pattern {
+export function resize(p: Pattern, width: number, height: number, dx = 0, dy = height - p.height): Pattern {
   const cells = new Array(width * height).fill(0);
   for (let y = 0; y < height; y++) {
-    const srcY = y - (height - p.height);
+    const srcY = y - dy;
     if (srcY < 0 || srcY >= p.height) continue;
-    for (let x = 0; x < Math.min(width, p.width); x++) {
-      cells[y * width + x] = p.cells[srcY * p.width + x];
+    for (let x = 0; x < width; x++) {
+      const srcX = x - dx;
+      if (srcX >= 0 && srcX < p.width) cells[y * width + x] = p.cells[srcY * p.width + srcX];
     }
   }
-  // Rows are counted from the bottom, which stays put, so finished rows stay finished.
+  // Rows are counted from the bottom. If that corner stays put, finished rows stay finished;
+  // if it moves, the finished stitches no longer line up with the chart.
+  if (dx !== 0 || dy !== height - p.height) return { ...p, width, height, cells, progress: 0 };
   const rowsDone = Math.floor(p.progress / p.width);
   const inRow = Math.min(p.progress % p.width, width);
   const progress = Math.min(rowsDone * width + inRow, width * height);
   return { ...p, width, height, cells, progress };
+}
+
+export type Rect = { x: number; y: number; w: number; h: number };
+
+/** `r` cut down to the part inside a width × height chart, or null if none of it is. */
+export function clipRect(r: Rect, width: number, height: number): Rect | null {
+  const x0 = Math.max(0, r.x);
+  const y0 = Math.max(0, r.y);
+  const x1 = Math.min(width, r.x + r.w);
+  const y1 = Math.min(height, r.y + r.h);
+  return x1 > x0 && y1 > y0 ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+}
+
+/**
+ * Move the stitches in `r` by (dx, dy). The area they leave becomes chain, they cover whatever
+ * they land on, and any that land off the chart are dropped.
+ */
+export function moveCells(cells: number[], width: number, height: number, r: Rect, dx: number, dy: number) {
+  const out = cells.slice();
+  for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) out[y * width + x] = 0;
+  for (let y = r.y; y < r.y + r.h; y++) {
+    const ty = y + dy;
+    if (ty < 0 || ty >= height) continue;
+    for (let x = r.x; x < r.x + r.w; x++) {
+      const tx = x + dx;
+      if (tx >= 0 && tx < width) out[ty * width + tx] = cells[y * width + x];
+    }
+  }
+  return out;
 }
 
 /** 4-way flood fill from (x, y), setting the connected region to `value`. */
